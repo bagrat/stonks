@@ -2,10 +2,11 @@ import Config
 
 # Configure your database
 config :seecure, Seecure.Repo,
-  username: "postgres",
-  password: "postgres",
+  username: "seecure",
+  password: "seecure",
   hostname: "localhost",
   database: "seecure_dev",
+  port: 54321,
   stacktrace: true,
   show_sensitive_data_on_connection_error: true,
   pool_size: 10

@@ -1,0 +1,12 @@
+version: '3.9'
+
+services:
+  postgres:
+    image: postgres:14-alpine
+    ports:
+      - 54321:5432
+    volumes:
+      - ./.ignore/postgres:/var/lib/postgresql/data
+    environment:
+      - POSTGRES_PASSWORD=seecure
+      - POSTGRES_USER=seecure
