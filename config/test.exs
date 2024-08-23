@@ -19,7 +19,7 @@ config :seecure, Seecure.Repo,
 config :seecure, SeecureWeb.Endpoint,
   http: [ip: {127, 0, 0, 1}, port: 4002],
   secret_key_base: "P+CmfxsEgLsaWskKjj4IM3SeNcUVG2K565edtBtUR0RN+tGzSUIKG4gw7j8jVM/S",
-  server: false
+  server: true
 
 # In test we don't send emails.
 config :seecure, Seecure.Mailer, adapter: Swoosh.Adapters.Test
@@ -32,3 +32,12 @@ config :logger, level: :warning
 
 # Initialize plugs at runtime for faster test compilation
 config :phoenix, :plug_init_mode, :runtime
+
+config :wallaby,
+  otp_app: :seecure,
+  chromedriver: [
+    headless: false
+  ],
+  slow_down: 600
+
+config :seecure, :sandbox, Seecure.Sandbox

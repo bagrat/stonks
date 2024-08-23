@@ -1,6 +1,10 @@
 defmodule SeecureWeb.Endpoint do
   use Phoenix.Endpoint, otp_app: :seecure
 
+  if sandbox = Application.compile_env(:seecure, :sandbox, false) do
+    plug Phoenix.Ecto.SQL.Sandbox, sandbox: sandbox
+  end
+
   # The session will be stored in the cookie and signed,
   # this means its contents can be read but not tampered with.
   # Set :encryption_salt if you would also like to encrypt it.
@@ -12,7 +16,7 @@ defmodule SeecureWeb.Endpoint do
   ]
 
   socket "/live", Phoenix.LiveView.Socket,
-    websocket: [connect_info: [session: @session_options]],
+    websocket: [connect_info: [:user_agent, session: @session_options]],
     longpoll: [connect_info: [session: @session_options]]
 
   # Serve at "/" the static files from "priv/static" directory.

@@ -57,6 +57,7 @@ defmodule Seecure.MixProject do
       {:gettext, "~> 0.20"},
       {:jason, "~> 1.2"},
       {:dns_cluster, "~> 0.1.1"},
+      {:wallaby, "~> 0.30", runtime: false, only: :test},
       {:bandit, "~> 1.2"}
     ]
   end
@@ -72,7 +73,7 @@ defmodule Seecure.MixProject do
       setup: ["deps.get", "ecto.setup", "assets.setup", "assets.build"],
       "ecto.setup": ["ecto.create", "ecto.migrate", "run priv/repo/seeds.exs"],
       "ecto.reset": ["ecto.drop", "ecto.setup"],
-      test: ["ecto.create --quiet", "ecto.migrate --quiet", "test"],
+      test: ["esbuild seecure", "ecto.create --quiet", "ecto.migrate --quiet", "test"],
       "assets.setup": ["tailwind.install --if-missing", "esbuild.install --if-missing"],
       "assets.build": ["tailwind seecure", "esbuild seecure"],
       "assets.deploy": [

@@ -18,6 +18,9 @@ defmodule SeecureWeb.Router do
     pipe_through :browser
 
     get "/", PageController, :home
+
+    live_session :default, on_mount: Seecure.Hooks.AllowEctoSandbox do
+    end
   end
 
   # Other scopes may use custom stacks.
