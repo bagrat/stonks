@@ -1,4 +1,4 @@
-defmodule SeecureWeb.CoreComponents do
+defmodule StonksWeb.CoreComponents do
   @moduledoc """
   Provides core UI components.
 
@@ -17,7 +17,7 @@ defmodule SeecureWeb.CoreComponents do
   use Phoenix.Component
 
   alias Phoenix.LiveView.JS
-  import SeecureWeb.Gettext
+  import StonksWeb.Gettext
 
   @doc """
   Renders a modal.
@@ -660,9 +660,9 @@ defmodule SeecureWeb.CoreComponents do
     # with our gettext backend as first argument. Translations are
     # available in the errors.po file (as we use the "errors" domain).
     if count = opts[:count] do
-      Gettext.dngettext(SeecureWeb.Gettext, "errors", msg, msg, count, opts)
+      Gettext.dngettext(StonksWeb.Gettext, "errors", msg, msg, count, opts)
     else
-      Gettext.dgettext(SeecureWeb.Gettext, "errors", msg, opts)
+      Gettext.dgettext(StonksWeb.Gettext, "errors", msg, opts)
     end
   end
 

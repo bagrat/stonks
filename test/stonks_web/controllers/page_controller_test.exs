@@ -1,5 +1,5 @@
-defmodule SeecureWeb.PageControllerTest do
-  use SeecureWeb.ConnCase
+defmodule StonksWeb.PageControllerTest do
+  use StonksWeb.ConnCase
 
   test "GET /", %{conn: conn} do
     conn = get(conn, ~p"/")

@@ -1,4 +1,4 @@
-defmodule Seecure.Hooks.AllowEctoSandbox do
+defmodule Stonks.Hooks.AllowEctoSandbox do
   import Phoenix.LiveView
   import Phoenix.Component
 
@@ -13,6 +13,6 @@ defmodule Seecure.Hooks.AllowEctoSandbox do
         if connected?(socket), do: get_connect_info(socket, :user_agent)
       end)
 
-    Phoenix.Ecto.SQL.Sandbox.allow(metadata, Application.get_env(:seecure, :sandbox))
+    Phoenix.Ecto.SQL.Sandbox.allow(metadata, Application.get_env(:stonks, :sandbox))
   end
 end

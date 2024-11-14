@@ -7,19 +7,19 @@
 # General application configuration
 import Config
 
-config :seecure,
-  ecto_repos: [Seecure.Repo],
+config :stonks,
+  ecto_repos: [Stonks.Repo],
   generators: [timestamp_type: :utc_datetime, binary_id: true]
 
 # Configures the endpoint
-config :seecure, SeecureWeb.Endpoint,
+config :stonks, StonksWeb.Endpoint,
   url: [host: "localhost"],
   adapter: Bandit.PhoenixAdapter,
   render_errors: [
-    formats: [html: SeecureWeb.ErrorHTML, json: SeecureWeb.ErrorJSON],
+    formats: [html: StonksWeb.ErrorHTML, json: StonksWeb.ErrorJSON],
     layout: false
   ],
-  pubsub_server: Seecure.PubSub,
+  pubsub_server: Stonks.PubSub,
   live_view: [signing_salt: "QdnkI2Vd"]
 
 # Configures the mailer
@@ -29,12 +29,12 @@ config :seecure, SeecureWeb.Endpoint,
 #
 # For production it's recommended to configure a different adapter
 # at the `config/runtime.exs`.
-config :seecure, Seecure.Mailer, adapter: Swoosh.Adapters.Local
+config :stonks, Stonks.Mailer, adapter: Swoosh.Adapters.Local
 
 # Configure esbuild (the version is required)
 config :esbuild,
   version: "0.17.11",
-  seecure: [
+  stonks: [
     args:
       ~w(js/app.js --bundle --target=es2017 --outdir=../priv/static/assets --external:/fonts/* --external:/images/*),
     cd: Path.expand("../assets", __DIR__),
@@ -44,7 +44,7 @@ config :esbuild,
 # Configure tailwind (the version is required)
 config :tailwind,
   version: "3.4.0",
-  seecure: [
+  stonks: [
     args: ~w(
       --config=tailwind.config.js
       --input=css/app.css

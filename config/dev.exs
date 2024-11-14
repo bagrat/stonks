@@ -1,11 +1,11 @@
 import Config
 
 # Configure your database
-config :seecure, Seecure.Repo,
-  username: "seecure",
-  password: "seecure",
+config :stonks, Stonks.Repo,
+  username: "stonks",
+  password: "stonks",
   hostname: "localhost",
-  database: "seecure_dev",
+  database: "stonks_dev",
   port: 54321,
   stacktrace: true,
   show_sensitive_data_on_connection_error: true,
@@ -17,7 +17,7 @@ config :seecure, Seecure.Repo,
 # The watchers configuration can be used to run external
 # watchers to your application. For example, we can use it
 # to bundle .js and .css sources.
-config :seecure, SeecureWeb.Endpoint,
+config :stonks, StonksWeb.Endpoint,
   # Binding to loopback ipv4 address prevents access from other machines.
   # Change to `ip: {0, 0, 0, 0}` to allow access from other machines.
   http: [ip: {127, 0, 0, 1}, port: 4000],
@@ -26,8 +26,8 @@ config :seecure, SeecureWeb.Endpoint,
   debug_errors: true,
   secret_key_base: "G0pm15J+7O41hGm+16ENwTummzsJfzMGD5BEbFGYOLTA5qDfYqDlieRRgOFI8TeW",
   watchers: [
-    esbuild: {Esbuild, :install_and_run, [:seecure, ~w(--sourcemap=inline --watch)]},
-    tailwind: {Tailwind, :install_and_run, [:seecure, ~w(--watch)]}
+    esbuild: {Esbuild, :install_and_run, [:stonks, ~w(--sourcemap=inline --watch)]},
+    tailwind: {Tailwind, :install_and_run, [:stonks, ~w(--watch)]}
   ]
 
 # ## SSL Support
@@ -54,17 +54,17 @@ config :seecure, SeecureWeb.Endpoint,
 # different ports.
 
 # Watch static and templates for browser reloading.
-config :seecure, SeecureWeb.Endpoint,
+config :stonks, StonksWeb.Endpoint,
   live_reload: [
     patterns: [
       ~r"priv/static/(?!uploads/).*(js|css|png|jpeg|jpg|gif|svg)$",
       ~r"priv/gettext/.*(po)$",
-      ~r"lib/seecure_web/(controllers|live|components)/.*(ex|heex)$"
+      ~r"lib/stonks_web/(controllers|live|components)/.*(ex|heex)$"
     ]
   ]
 
 # Enable dev routes for dashboard and mailbox
-config :seecure, dev_routes: true
+config :stonks, dev_routes: true
 
 # Do not include metadata nor timestamps in development logs
 config :logger, :console, format: "[$level] $message\n"

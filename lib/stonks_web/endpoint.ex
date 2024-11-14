@@ -1,7 +1,7 @@
-defmodule SeecureWeb.Endpoint do
-  use Phoenix.Endpoint, otp_app: :seecure
+defmodule StonksWeb.Endpoint do
+  use Phoenix.Endpoint, otp_app: :stonks
 
-  if sandbox = Application.compile_env(:seecure, :sandbox, false) do
+  if sandbox = Application.compile_env(:stonks, :sandbox, false) do
     plug Phoenix.Ecto.SQL.Sandbox, sandbox: sandbox
   end
 
@@ -10,7 +10,7 @@ defmodule SeecureWeb.Endpoint do
   # Set :encryption_salt if you would also like to encrypt it.
   @session_options [
     store: :cookie,
-    key: "_seecure_key",
+    key: "_stonks_key",
     signing_salt: "1+f9E+jl",
     same_site: "Lax"
   ]
@@ -25,9 +25,9 @@ defmodule SeecureWeb.Endpoint do
   # when deploying your static files in production.
   plug Plug.Static,
     at: "/",
-    from: :seecure,
+    from: :stonks,
     gzip: false,
-    only: SeecureWeb.static_paths()
+    only: StonksWeb.static_paths()
 
   # Code reloading can be explicitly enabled under the
   # :code_reloader configuration of your endpoint.
@@ -35,7 +35,7 @@ defmodule SeecureWeb.Endpoint do
     socket "/phoenix/live_reload/socket", Phoenix.LiveReloader.Socket
     plug Phoenix.LiveReloader
     plug Phoenix.CodeReloader
-    plug Phoenix.Ecto.CheckRepoStatus, otp_app: :seecure
+    plug Phoenix.Ecto.CheckRepoStatus, otp_app: :stonks
   end
 
   plug Phoenix.LiveDashboard.RequestLogger,
@@ -53,5 +53,5 @@ defmodule SeecureWeb.Endpoint do
   plug Plug.MethodOverride
   plug Plug.Head
   plug Plug.Session, @session_options
-  plug SeecureWeb.Router
+  plug StonksWeb.Router
 end

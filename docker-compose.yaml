@@ -8,5 +8,5 @@ services:
     volumes:
       - ./.ignore/postgres:/var/lib/postgresql/data
     environment:
-      - POSTGRES_PASSWORD=seecure
-      - POSTGRES_USER=seecure
+      - POSTGRES_PASSWORD=stonks
+      - POSTGRES_USER=stonks

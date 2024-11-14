@@ -1,9 +1,9 @@
-defmodule Seecure.MixProject do
+defmodule Stonks.MixProject do
   use Mix.Project
 
   def project do
     [
-      app: :seecure,
+      app: :stonks,
       version: "0.1.0",
       elixir: "~> 1.14",
       elixirc_paths: elixirc_paths(Mix.env()),
@@ -18,7 +18,7 @@ defmodule Seecure.MixProject do
   # Type `mix help compile.app` for more information.
   def application do
     [
-      mod: {Seecure.Application, []},
+      mod: {Stonks.Application, []},
       extra_applications: [:logger, :runtime_tools]
     ]
   end
@@ -73,12 +73,12 @@ defmodule Seecure.MixProject do
       setup: ["deps.get", "ecto.setup", "assets.setup", "assets.build"],
       "ecto.setup": ["ecto.create", "ecto.migrate", "run priv/repo/seeds.exs"],
       "ecto.reset": ["ecto.drop", "ecto.setup"],
-      test: ["esbuild seecure", "ecto.create --quiet", "ecto.migrate --quiet", "test"],
+      test: ["esbuild stonks", "ecto.create --quiet", "ecto.migrate --quiet", "test"],
       "assets.setup": ["tailwind.install --if-missing", "esbuild.install --if-missing"],
-      "assets.build": ["tailwind seecure", "esbuild seecure"],
+      "assets.build": ["tailwind stonks", "esbuild stonks"],
       "assets.deploy": [
-        "tailwind seecure --minify",
-        "esbuild seecure --minify",
+        "tailwind stonks --minify",
+        "esbuild stonks --minify",
         "phx.digest"
       ]
     ]

@@ -1,4 +1,4 @@
-defmodule SeecureWeb.Telemetry do
+defmodule StonksWeb.Telemetry do
   use Supervisor
   import Telemetry.Metrics
 
@@ -52,23 +52,23 @@ defmodule SeecureWeb.Telemetry do
       ),
 
       # Database Metrics
-      summary("seecure.repo.query.total_time",
+      summary("stonks.repo.query.total_time",
         unit: {:native, :millisecond},
         description: "The sum of the other measurements"
       ),
-      summary("seecure.repo.query.decode_time",
+      summary("stonks.repo.query.decode_time",
         unit: {:native, :millisecond},
         description: "The time spent decoding the data received from the database"
       ),
-      summary("seecure.repo.query.query_time",
+      summary("stonks.repo.query.query_time",
         unit: {:native, :millisecond},
         description: "The time spent executing the query"
       ),
-      summary("seecure.repo.query.queue_time",
+      summary("stonks.repo.query.queue_time",
         unit: {:native, :millisecond},
         description: "The time spent waiting for a database connection"
       ),
-      summary("seecure.repo.query.idle_time",
+      summary("stonks.repo.query.idle_time",
         unit: {:native, :millisecond},
         description:
           "The time the connection spent waiting before being checked out for the query"
@@ -86,7 +86,7 @@ defmodule SeecureWeb.Telemetry do
     [
       # A module, function and arguments to be invoked periodically.
       # This function must call :telemetry.execute/3 and a metric must be added above.
-      # {SeecureWeb, :count_users, []}
+      # {StonksWeb, :count_users, []}
     ]
   end
 end

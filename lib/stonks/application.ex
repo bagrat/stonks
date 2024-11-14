@@ -1,4 +1,4 @@
-defmodule Seecure.Application do
+defmodule Stonks.Application do
   # See https://hexdocs.pm/elixir/Application.html
   # for more information on OTP Applications
   @moduledoc false
@@ -8,21 +8,21 @@ defmodule Seecure.Application do
   @impl true
   def start(_type, _args) do
     children = [
-      SeecureWeb.Telemetry,
-      Seecure.Repo,
-      {DNSCluster, query: Application.get_env(:seecure, :dns_cluster_query) || :ignore},
-      {Phoenix.PubSub, name: Seecure.PubSub},
+      StonksWeb.Telemetry,
+      Stonks.Repo,
+      {DNSCluster, query: Application.get_env(:stonks, :dns_cluster_query) || :ignore},
+      {Phoenix.PubSub, name: Stonks.PubSub},
       # Start the Finch HTTP client for sending emails
-      {Finch, name: Seecure.Finch},
-      # Start a worker by calling: Seecure.Worker.start_link(arg)
-      # {Seecure.Worker, arg},
+      {Finch, name: Stonks.Finch},
+      # Start a worker by calling: Stonks.Worker.start_link(arg)
+      # {Stonks.Worker, arg},
       # Start to serve requests, typically the last entry
-      SeecureWeb.Endpoint
+      StonksWeb.Endpoint
     ]
 
     # See https://hexdocs.pm/elixir/Supervisor.html
     # for other strategies and supported options
-    opts = [strategy: :one_for_one, name: Seecure.Supervisor]
+    opts = [strategy: :one_for_one, name: Stonks.Supervisor]
     Supervisor.start_link(children, opts)
   end
 
@@ -30,7 +30,7 @@ defmodule Seecure.Application do
   # whenever the application is updated.
   @impl true
   def config_change(changed, _new, removed) do
-    SeecureWeb.Endpoint.config_change(changed, removed)
+    StonksWeb.Endpoint.config_change(changed, removed)
     :ok
   end
 end
