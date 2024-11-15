@@ -10,10 +10,10 @@ defmodule Stonks.TwelvedataTest do
     exchanges =
       for stock <- stocks do
         assert %{
-                 "symbol" => _symbol,
-                 "exchange" => exchange,
-                 "name" => _name,
-                 "currency" => _currency
+                 symbol: _symbol,
+                 exchange: exchange,
+                 name: _name,
+                 currency: _currency
                } = stock
 
         exchange

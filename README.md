@@ -26,8 +26,9 @@ curl -s https://googlechromelabs.github.io/chrome-for-testing/known-good-version
 - Run `mix test --trace` to run the tests and make sure everything is set up correctly
 - Start Phoenix server with `mix phx.server` or inside IEx with `iex -S mix phx.server`
 
-# TODOs
+## TODOs
 
 - [ ] Handle rate-limit errors from the Twelvedata API
 - [ ] DRY up Twelvedata client module to use the same code for both the API and the tests
 - [ ] Exclude tests using the real API when running `mix test`
+- [ ] Come up with a strategy to sort the stock without having statistics for all

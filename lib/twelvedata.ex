@@ -6,8 +6,23 @@ defmodule Stonks.Twelvedata do
     case HTTPoison.get(url) do
       {:ok, %HTTPoison.Response{status_code: 200, body: body}} ->
         case Jason.decode(body) do
-          {:ok, %{"data" => data}} -> {:ok, data}
-          {:error, _} -> {:error, "Failed to parse JSON for the #{exchange} exchange stocks"}
+          {:ok,
+           %{
+             "data" => stocks
+           }} ->
+            {:ok,
+             stocks
+             |> Enum.map(fn stock ->
+               %{
+                 symbol: stock["symbol"],
+                 name: stock["name"],
+                 currency: stock["currency"],
+                 exchange: exchange
+               }
+             end)}
+
+          {:error, _} ->
+            {:error, "Failed to parse JSON for the #{exchange} exchange stocks"}
         end
 
       {:ok, %HTTPoison.Response{status_code: status_code}} ->
