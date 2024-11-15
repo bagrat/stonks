@@ -41,3 +41,5 @@ config :wallaby,
   slow_down: 600
 
 config :stonks, :sandbox, Stonks.Sandbox
+
+config :stonks, :twelvedata, api_key: "bb6141c0a7c449949a766265877511b9"

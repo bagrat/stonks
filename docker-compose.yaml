@@ -10,3 +10,4 @@ services:
     environment:
       - POSTGRES_PASSWORD=stonks
       - POSTGRES_USER=stonks
+      - TWELVE_DATA_API_KEY=bb6141c0a7c449949a766265877511b9
