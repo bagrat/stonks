@@ -67,4 +67,10 @@ defmodule Stonks.TwelvedataTest do
              }
            } = statistics
   end
+
+  test "get_stock_logo_url/1 should return the logo URL for a stock" do
+    {:ok, logo_url} = Stonks.Twelvedata.get_stock_logo_url("AAPL")
+
+    assert logo_url == "https://api.twelvedata.com/logo/apple.com"
+  end
 end

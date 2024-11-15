@@ -31,6 +31,25 @@ defmodule Stonks.Twelvedata do
     end
   end
 
+  def get_stock_logo_url(symbol) do
+    [api_key: api_key] = Application.fetch_env!(:stonks, :twelvedata)
+    url = "https://api.twelvedata.com/logo?apikey=#{api_key}&symbol=#{symbol}"
+
+    case HTTPoison.get(url) do
+      {:ok, %HTTPoison.Response{status_code: 200, body: body}} ->
+        case Jason.decode(body) do
+          {:ok, %{"url" => url}} -> {:ok, url}
+          {:error, _} -> {:error, "Failed to parse JSON for the #{symbol} stock logo"}
+        end
+
+      {:ok, %HTTPoison.Response{status_code: status_code}} ->
+        {:error, "Request for the #{symbol} stock logo failed with status code: #{status_code}"}
+
+      {:error, %HTTPoison.Error{reason: reason}} ->
+        {:error, "HTTP request error for the #{symbol} stock logo: #{reason}"}
+    end
+  end
+
   def get_stock_statistics(symbol) do
     [api_key: api_key] = Application.fetch_env!(:stonks, :twelvedata)
     url = "https://api.twelvedata.com/statistics?apikey=#{api_key}&symbol=#{symbol}"
