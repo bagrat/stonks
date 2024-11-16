@@ -74,6 +74,31 @@ defmodule Stonks.TwelvedataTest do
     assert logo_url == "https://api.twelvedata.com/logo/apple.com"
   end
 
+  test "get_daily_time_series/1 should return the daily time series for a stock" do
+    {:ok, timeseries} = Stonks.Twelvedata.get_daily_time_series("AAPL")
+
+    assert is_list(timeseries)
+    assert length(timeseries) == 30
+
+    for data_point <- timeseries do
+      assert %Stonks.Stocks.TimeseriesDataPoint{
+               datetime: datetime,
+               open: open,
+               high: high,
+               low: low,
+               close: close,
+               volume: volume
+             } = data_point
+
+      assert %Date{} = datetime
+      assert is_float(open)
+      assert is_float(high)
+      assert is_float(low)
+      assert is_float(close)
+      assert is_integer(volume)
+    end
+  end
+
   test "ensure all stocks are in USD so that we can safely emit it in the UI" do
     {:ok, stocks} = Stonks.Twelvedata.list_stocks()
 

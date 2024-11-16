@@ -1,11 +1,10 @@
 defmodule Stonks.Twelvedata do
-  alias Stonks.Stocks.{Stock, Statistics}
+  alias Stonks.Stocks.{Stock, Statistics, TimeseriesDataPoint}
 
   def list_stocks_for_exchange(exchange) do
-    [api_key: api_key] = Application.fetch_env!(:stonks, :twelvedata)
-    url = "https://api.twelvedata.com/stocks?apikey=#{api_key}&exchange=#{exchange}"
+    path = "stocks?exchange=#{exchange}"
 
-    case make_request(url) do
+    case make_request(path) do
       {:ok, body} ->
         case Jason.decode(body) do
           {:ok, %{"data" => stocks}} ->
@@ -42,10 +41,9 @@ defmodule Stonks.Twelvedata do
   end
 
   def get_stock_logo_url(symbol) do
-    [api_key: api_key] = Application.fetch_env!(:stonks, :twelvedata)
-    url = "https://api.twelvedata.com/logo?apikey=#{api_key}&symbol=#{symbol}"
+    path = "logo?symbol=#{symbol}"
 
-    case make_request(url) do
+    case make_request(path) do
       {:ok, body} ->
         case Jason.decode(body) do
           {:ok, %{"url" => url}} -> {:ok, url}
@@ -58,10 +56,9 @@ defmodule Stonks.Twelvedata do
   end
 
   def get_stock_statistics(symbol) do
-    [api_key: api_key] = Application.fetch_env!(:stonks, :twelvedata)
-    url = "https://api.twelvedata.com/statistics?apikey=#{api_key}&symbol=#{symbol}"
+    path = "statistics?symbol=#{symbol}"
 
-    case make_request(url) do
+    case make_request(path) do
       {:ok, body} ->
         case Jason.decode(body) do
           {:ok, %{"statistics" => stats}} ->
@@ -116,8 +113,45 @@ defmodule Stonks.Twelvedata do
     end
   end
 
-  defp make_request(url) do
-    request = Finch.build(:get, url)
+  def get_daily_time_series(symbol) do
+    path = "time_series?symbol=#{symbol}&interval=1day"
+
+    case make_request(path) do
+      {:ok, body} ->
+        case Jason.decode(body) do
+          {:ok, %{"values" => values}} ->
+            {:ok,
+             values
+             |> Enum.map(fn value ->
+               {:ok, datetime} = Date.from_iso8601(value["datetime"])
+
+               %TimeseriesDataPoint{
+                 datetime: datetime,
+                 open: String.to_float(value["open"]),
+                 high: String.to_float(value["high"]),
+                 low: String.to_float(value["low"]),
+                 close: String.to_float(value["close"]),
+                 volume: String.to_integer(value["volume"])
+               }
+             end)}
+
+          {:error, _} ->
+            {:error, "Failed to parse JSON for the #{symbol} daily time series"}
+        end
+
+      {:error, reason} ->
+        {:error, "HTTP request error for the #{symbol} daily time series: #{reason}"}
+    end
+  end
+
+  defp make_request(path) do
+    url = "https://api.twelvedata.com/#{path}"
+    [api_key: api_key] = Application.fetch_env!(:stonks, :twelvedata)
+
+    request =
+      Finch.build(:get, url, [
+        {"Authorization", "apikey #{api_key}"}
+      ])
 
     case Finch.request(request, Stonks.Finch) do
       {:ok, %Finch.Response{status: 200, body: body}} ->
