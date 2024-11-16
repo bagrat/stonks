@@ -1,12 +1,11 @@
 defmodule StonksWeb.StockLive.Index do
   use StonksWeb, :live_view
 
-  @stocks_per_page 10
+  @stocks_per_page 3
 
   @impl true
   def mount(_params, _session, socket) do
     {:ok, all_stocks} = Stonks.Twelvedata.list_stocks()
-
     total_pages = (length(all_stocks) / @stocks_per_page) |> ceil()
 
     {:ok,
@@ -59,10 +58,27 @@ defmodule StonksWeb.StockLive.Index do
           [1, :ellipsis] ++ visible_pages ++ [:ellipsis, total_pages]
       end
 
+    enriched_stocks =
+      stocks
+      |> Enum.map(fn stock ->
+        logo_task =
+          Task.async(fn ->
+            Stonks.Twelvedata.get_stock_logo_url(stock.symbol, stock.exchange)
+          end)
+
+        {stock, logo_task}
+      end)
+      |> Enum.map(fn {stock, logo_task} ->
+        {:ok, logo_url} = Task.await(logo_task)
+
+        stock
+        |> Map.put(:logo_url, logo_url)
+      end)
+
     socket =
       socket
       |> assign(:page_title, "Stocks")
-      |> assign(:stocks, stocks)
+      |> assign(:stocks, enriched_stocks)
       |> assign(:current_page, current_page)
       |> assign(:pages_to_show, pages_to_show)
 

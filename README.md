@@ -32,3 +32,7 @@ curl -s https://googlechromelabs.github.io/chrome-for-testing/known-good-version
 - [ ] DRY up Twelvedata client module to use the same code for both the API and the tests
 - [ ] Exclude tests using the real API when running `mix test`
 - [ ] Come up with a strategy to sort the stock without having statistics for all
+  - [ ] maybe use the the average volume from the timeseries data
+- [ ] Add a loading state to the stock page
+- [ ] Add a tooltip for truncated company names
+- [ ] Support mobile view
