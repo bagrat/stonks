@@ -3,13 +3,10 @@ defmodule Stonks.Twelvedata do
     [api_key: api_key] = Application.fetch_env!(:stonks, :twelvedata)
     url = "https://api.twelvedata.com/stocks?apikey=#{api_key}&exchange=#{exchange}"
 
-    case HTTPoison.get(url) do
-      {:ok, %HTTPoison.Response{status_code: 200, body: body}} ->
+    case make_request(url) do
+      {:ok, body} ->
         case Jason.decode(body) do
-          {:ok,
-           %{
-             "data" => stocks
-           }} ->
+          {:ok, %{"data" => stocks}} ->
             {:ok,
              stocks
              |> Enum.map(fn stock ->
@@ -25,11 +22,7 @@ defmodule Stonks.Twelvedata do
             {:error, "Failed to parse JSON for the #{exchange} exchange stocks"}
         end
 
-      {:ok, %HTTPoison.Response{status_code: status_code}} ->
-        {:error,
-         "Request for the #{exchange} exchange stocks failed with status code: #{status_code}"}
-
-      {:error, %HTTPoison.Error{reason: reason}} ->
+      {:error, reason} ->
         {:error, "HTTP request error for the #{exchange} exchange stocks: #{reason}"}
     end
   end
@@ -50,17 +43,14 @@ defmodule Stonks.Twelvedata do
     [api_key: api_key] = Application.fetch_env!(:stonks, :twelvedata)
     url = "https://api.twelvedata.com/logo?apikey=#{api_key}&symbol=#{symbol}"
 
-    case HTTPoison.get(url) do
-      {:ok, %HTTPoison.Response{status_code: 200, body: body}} ->
+    case make_request(url) do
+      {:ok, body} ->
         case Jason.decode(body) do
           {:ok, %{"url" => url}} -> {:ok, url}
           {:error, _} -> {:error, "Failed to parse JSON for the #{symbol} stock logo"}
         end
 
-      {:ok, %HTTPoison.Response{status_code: status_code}} ->
-        {:error, "Request for the #{symbol} stock logo failed with status code: #{status_code}"}
-
-      {:error, %HTTPoison.Error{reason: reason}} ->
+      {:error, reason} ->
         {:error, "HTTP request error for the #{symbol} stock logo: #{reason}"}
     end
   end
@@ -69,8 +59,8 @@ defmodule Stonks.Twelvedata do
     [api_key: api_key] = Application.fetch_env!(:stonks, :twelvedata)
     url = "https://api.twelvedata.com/statistics?apikey=#{api_key}&symbol=#{symbol}"
 
-    case HTTPoison.get(url) do
-      {:ok, %HTTPoison.Response{status_code: 200, body: body}} ->
+    case make_request(url) do
+      {:ok, body} ->
         case Jason.decode(body) do
           {:ok,
            %{
@@ -151,12 +141,23 @@ defmodule Stonks.Twelvedata do
             {:error, "Failed to parse JSON for the #{symbol} stock statistics"}
         end
 
-      {:ok, %HTTPoison.Response{status_code: status_code}} ->
-        {:error,
-         "Request for the #{symbol} stock statistics failed with status code: #{status_code}"}
-
-      {:error, %HTTPoison.Error{reason: reason}} ->
+      {:error, reason} ->
         {:error, "HTTP request error for the #{symbol} stock statistics: #{reason}"}
+    end
+  end
+
+  defp make_request(url) do
+    request = Finch.build(:get, url)
+
+    case Finch.request(request, Stonks.Finch) do
+      {:ok, %Finch.Response{status: 200, body: body}} ->
+        {:ok, body}
+
+      {:ok, %Finch.Response{status: status}} ->
+        {:error, "Request failed with status code: #{status}"}
+
+      {:error, reason} ->
+        {:error, reason}
     end
   end
 end
