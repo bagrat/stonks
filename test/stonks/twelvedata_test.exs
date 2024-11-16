@@ -26,7 +26,7 @@ defmodule Stonks.TwelvedataTest do
   end
 
   test "get_stock_statistics/1 should return stock statistics" do
-    {:ok, statistics} = Stonks.Twelvedata.get_stock_statistics("AAPL")
+    {:ok, statistics} = Stonks.Twelvedata.get_stock_statistics("AAPL", "NASDAQ")
 
     assert is_map(statistics)
 
@@ -69,13 +69,13 @@ defmodule Stonks.TwelvedataTest do
   end
 
   test "get_stock_logo_url/1 should return the logo URL for a stock" do
-    {:ok, logo_url} = Stonks.Twelvedata.get_stock_logo_url("AAPL")
+    {:ok, logo_url} = Stonks.Twelvedata.get_stock_logo_url("AAPL", "NASDAQ")
 
     assert logo_url == "https://api.twelvedata.com/logo/apple.com"
   end
 
   test "get_daily_time_series/1 should return the daily time series for a stock" do
-    {:ok, timeseries} = Stonks.Twelvedata.get_daily_time_series("AAPL")
+    {:ok, timeseries} = Stonks.Twelvedata.get_daily_time_series("AAPL", "NASDAQ")
 
     assert is_list(timeseries)
     assert length(timeseries) == 30

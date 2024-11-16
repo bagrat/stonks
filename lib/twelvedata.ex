@@ -40,8 +40,8 @@ defmodule Stonks.Twelvedata do
     end
   end
 
-  def get_stock_logo_url(symbol) do
-    path = "logo?symbol=#{symbol}"
+  def get_stock_logo_url(symbol, exchange) do
+    path = "logo?symbol=#{symbol}&exchange=#{exchange}"
 
     case make_request(path) do
       {:ok, body} ->
@@ -55,8 +55,8 @@ defmodule Stonks.Twelvedata do
     end
   end
 
-  def get_stock_statistics(symbol) do
-    path = "statistics?symbol=#{symbol}"
+  def get_stock_statistics(symbol, exchange) do
+    path = "statistics?symbol=#{symbol}&exchange=#{exchange}"
 
     case make_request(path) do
       {:ok, body} ->
@@ -113,8 +113,8 @@ defmodule Stonks.Twelvedata do
     end
   end
 
-  def get_daily_time_series(symbol) do
-    path = "time_series?symbol=#{symbol}&interval=1day"
+  def get_daily_time_series(symbol, exchange) do
+    path = "time_series?symbol=#{symbol}&interval=1day&exchange=#{exchange}"
 
     case make_request(path) do
       {:ok, body} ->
