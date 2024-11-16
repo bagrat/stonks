@@ -1,4 +1,6 @@
 defmodule Stonks.Twelvedata do
+  alias Stonks.Stocks.{Stock, Statistics}
+
   def list_stocks_for_exchange(exchange) do
     [api_key: api_key] = Application.fetch_env!(:stonks, :twelvedata)
     url = "https://api.twelvedata.com/stocks?apikey=#{api_key}&exchange=#{exchange}"
@@ -10,7 +12,7 @@ defmodule Stonks.Twelvedata do
             {:ok,
              stocks
              |> Enum.map(fn stock ->
-               %{
+               %Stock{
                  symbol: stock["symbol"],
                  name: stock["name"],
                  currency: stock["currency"],
@@ -62,78 +64,46 @@ defmodule Stonks.Twelvedata do
     case make_request(url) do
       {:ok, body} ->
         case Jason.decode(body) do
-          {:ok,
-           %{
-             "statistics" => %{
-               "valuations_metrics" => %{
-                 "market_capitalization" => market_capitalization,
-                 "trailing_pe" => trailing_pe,
-                 "forward_pe" => forward_pe,
-                 "peg_ratio" => peg_ratio
-               },
-               "financials" => %{
-                 "gross_margin" => gross_margin,
-                 "profit_margin" => profit_margin,
-                 "return_on_equity_ttm" => return_on_equity,
-                 "income_statement" => %{
-                   "quarterly_revenue_growth" => quarterly_revenue_growth,
-                   "quarterly_earnings_growth_yoy" => quarterly_earnings_growth_yoy
-                 },
-                 "balance_sheet" => %{
-                   "total_cash_mrq" => total_cash,
-                   "total_debt_mrq" => total_debt,
-                   "total_debt_to_equity_mrq" => debt_to_equity_ratio,
-                   "current_ratio_mrq" => current_ratio
-                 }
-               },
-               "stock_price_summary" => %{
-                 "beta" => beta,
-                 "fifty_two_week_high" => fifty_two_week_high,
-                 "fifty_two_week_low" => fifty_two_week_low,
-                 "day_50_ma" => day_50_ma,
-                 "day_200_ma" => day_200_ma
-               },
-               "dividends_and_splits" => %{
-                 "forward_annual_dividend_yield" => forward_annual_dividend_yield,
-                 "payout_ratio" => payout_ratio
-               }
-             }
-           }} ->
+          {:ok, %{"statistics" => stats}} ->
             {:ok,
-             %{
-               essentials: %{
-                 market_capitalization: market_capitalization,
-                 fifty_two_week_high: fifty_two_week_high,
-                 fifty_two_week_low: fifty_two_week_low
+             %Statistics{
+               essentials: %Statistics.Essentials{
+                 market_capitalization: stats["valuations_metrics"]["market_capitalization"],
+                 fifty_two_week_high: stats["stock_price_summary"]["fifty_two_week_high"],
+                 fifty_two_week_low: stats["stock_price_summary"]["fifty_two_week_low"]
                },
-               valuation_and_profitability: %{
-                 trailing_pe: trailing_pe,
-                 forward_pe: forward_pe,
-                 peg_ratio: peg_ratio,
-                 gross_margin: gross_margin,
-                 profit_margin: profit_margin,
-                 return_on_equity: return_on_equity
+               valuation_and_profitability: %Statistics.ValuationAndProfitability{
+                 trailing_pe: stats["valuations_metrics"]["trailing_pe"],
+                 forward_pe: stats["valuations_metrics"]["forward_pe"],
+                 peg_ratio: stats["valuations_metrics"]["peg_ratio"],
+                 gross_margin: stats["financials"]["gross_margin"],
+                 profit_margin: stats["financials"]["profit_margin"],
+                 return_on_equity: stats["financials"]["return_on_equity_ttm"]
                },
-               growth_metrics: %{
-                 quarterly_revenue_growth: quarterly_revenue_growth,
-                 quarterly_earnings_growth_yoy: quarterly_earnings_growth_yoy
+               growth_metrics: %Statistics.GrowthMetrics{
+                 quarterly_revenue_growth:
+                   stats["financials"]["income_statement"]["quarterly_revenue_growth"],
+                 quarterly_earnings_growth_yoy:
+                   stats["financials"]["income_statement"]["quarterly_earnings_growth_yoy"]
                },
-               financial_health: %{
-                 total_cash: total_cash,
-                 total_debt: total_debt,
-                 debt_to_equity_ratio: debt_to_equity_ratio,
-                 current_ratio: current_ratio
+               financial_health: %Statistics.FinancialHealth{
+                 total_cash: stats["financials"]["balance_sheet"]["total_cash_mrq"],
+                 total_debt: stats["financials"]["balance_sheet"]["total_debt_mrq"],
+                 debt_to_equity_ratio:
+                   stats["financials"]["balance_sheet"]["total_debt_to_equity_mrq"],
+                 current_ratio: stats["financials"]["balance_sheet"]["current_ratio_mrq"]
                },
-               market_trends: %{
-                 beta: beta,
-                 fifty_two_week_high: fifty_two_week_high,
-                 fifty_two_week_low: fifty_two_week_low,
-                 fifty_day_moving_average: day_50_ma,
-                 two_hundred_day_moving_average: day_200_ma
+               market_trends: %Statistics.MarketTrends{
+                 beta: stats["stock_price_summary"]["beta"],
+                 fifty_two_week_high: stats["stock_price_summary"]["fifty_two_week_high"],
+                 fifty_two_week_low: stats["stock_price_summary"]["fifty_two_week_low"],
+                 fifty_day_moving_average: stats["stock_price_summary"]["day_50_ma"],
+                 two_hundred_day_moving_average: stats["stock_price_summary"]["day_200_ma"]
                },
-               dividend_information: %{
-                 forward_annual_dividend_yield: forward_annual_dividend_yield,
-                 payout_ratio: payout_ratio
+               dividend_information: %Statistics.DividendInformation{
+                 forward_annual_dividend_yield:
+                   stats["dividends_and_splits"]["forward_annual_dividend_yield"],
+                 payout_ratio: stats["dividends_and_splits"]["payout_ratio"]
                }
              }}
 
