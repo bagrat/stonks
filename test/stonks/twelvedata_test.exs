@@ -73,4 +73,10 @@ defmodule Stonks.TwelvedataTest do
 
     assert logo_url == "https://api.twelvedata.com/logo/apple.com"
   end
+
+  test "ensure all stocks are in USD so that we can safely emit it in the UI" do
+    {:ok, stocks} = Stonks.Twelvedata.list_stocks()
+
+    assert Enum.all?(stocks, fn stock -> stock.currency == "USD" end)
+  end
 end

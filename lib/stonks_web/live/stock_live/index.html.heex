@@ -1,0 +1,51 @@
+<div class="w-[40rem] mt-11 sm:w-full">
+  <div>
+    <div :for={stock <- @stocks} class="hover:bg-zinc-50 my-3 py-2 px-3 hover:cursor-pointer">
+      <div class="p-0 font-medium text-lg"><%= stock.symbol %></div>
+      <div class="p-0 text-xs text-zinc-400 max-w-56 truncate group">
+        <%= stock.name %>
+      </div>
+    </div>
+  </div>
+  <div class="flex">
+    <div class="text-center py-3">
+      <.link
+        patch={~p"/?page=#{(@current_page - 1) |> max(1)}"}
+        class={[
+          "text-blue-600 hover:text-blue-800",
+          @current_page == 1 && "pointer-events-none text-gray-400"
+        ]}
+      >
+        Previous
+      </.link>
+    </div>
+
+    <div class="flex min-w-[25rem] justify-center">
+      <div :for={page <- @pages_to_show} class="text-center py-3">
+        <%= if is_integer(page) && page == @current_page do %>
+          <div class="w-[2.5rem] text-zinc-700"><%= page %></div>
+        <% else %>
+          <%= if is_atom(page) && page == :ellipsis do %>
+            <div class="text-zinc-400">...</div>
+          <% else %>
+            <div class="w-[2.5rem] text-zinc-400">
+              <.link patch={~p"/?page=#{page}"}><%= page %></.link>
+            </div>
+          <% end %>
+        <% end %>
+      </div>
+    </div>
+
+    <div class="text-center py-3">
+      <.link
+        patch={~p"/?page=#{(@current_page + 1) |> min(@total_pages)}"}
+        class={[
+          "text-blue-600 hover:text-blue-800",
+          @current_page == @total_pages && "pointer-events-none text-gray-400"
+        ]}
+      >
+        Next
+      </.link>
+    </div>
+  </div>
+</div>
