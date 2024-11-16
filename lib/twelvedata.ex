@@ -1,146 +1,251 @@
 defmodule Stonks.Twelvedata do
+  use GenServer
+  require Logger
   alias Stonks.Stocks.{Stock, Statistics, TimeseriesDataPoint}
 
+  # Client API
+  def start_link(_opts \\ []) do
+    GenServer.start_link(__MODULE__, %{}, name: __MODULE__)
+  end
+
   def list_stocks_for_exchange(exchange) do
-    path = "stocks?exchange=#{exchange}"
-
-    case make_request(path) do
-      {:ok, body} ->
-        case Jason.decode(body) do
-          {:ok, %{"data" => stocks}} ->
-            {:ok,
-             stocks
-             |> Enum.map(fn stock ->
-               %Stock{
-                 symbol: stock["symbol"],
-                 name: stock["name"],
-                 currency: stock["currency"],
-                 exchange: exchange
-               }
-             end)}
-
-          {:error, _} ->
-            {:error, "Failed to parse JSON for the #{exchange} exchange stocks"}
-        end
-
-      {:error, reason} ->
-        {:error, "HTTP request error for the #{exchange} exchange stocks: #{reason}"}
-    end
+    GenServer.call(__MODULE__, {:list_stocks_for_exchange, exchange}, :infinity)
   end
 
   def list_stocks() do
-    nasdaq_task = Task.async(fn -> list_stocks_for_exchange("NASDAQ") end)
-    nyse_task = Task.async(fn -> list_stocks_for_exchange("NYSE") end)
+    GenServer.call(__MODULE__, :list_stocks, :infinity)
+  end
 
-    with {:ok, nasdaq_stocks} <- Task.await(nasdaq_task),
-         {:ok, nyse_stocks} <- Task.await(nyse_task) do
+  def get_stock_logo_url(symbol, exchange) do
+    GenServer.call(__MODULE__, {:get_stock_logo_url, symbol, exchange}, :infinity)
+  end
+
+  def get_stock_statistics(symbol, exchange) do
+    GenServer.call(__MODULE__, {:get_stock_statistics, symbol, exchange}, :infinity)
+  end
+
+  def get_daily_time_series(symbol, exchange) do
+    GenServer.call(__MODULE__, {:get_daily_time_series, symbol, exchange}, :infinity)
+  end
+
+  # Server Callbacks
+  @impl true
+  def init(_opts) do
+    {:ok, %{waiting_queue: :queue.new()}}
+  end
+
+  @impl true
+  def handle_call(request, from, %{waiting_queue: queue} = state) do
+    case do_handle_request(request) do
+      {:error, :rate_limited, retry_after} ->
+        # Calculate when to retry
+        retry_at = DateTime.add(DateTime.utc_now(), retry_after, :second)
+        Logger.info("Rate limited, will retry after #{retry_after} seconds")
+
+        # Schedule the retry
+        Process.send_after(self(), :process_queue, retry_after * 1000)
+
+        # Add this request to the queue
+        updated_queue = :queue.in({request, from, retry_at}, queue)
+        {:noreply, %{state | waiting_queue: updated_queue}}
+
+      result ->
+        {:reply, result, state}
+    end
+  end
+
+  @impl true
+  def handle_info(:process_queue, %{waiting_queue: queue} = state) do
+    now = DateTime.utc_now()
+
+    {ready_requests, still_waiting} =
+      queue
+      |> :queue.to_list()
+      |> Enum.split_with(fn {_req, _from, retry_at} ->
+        DateTime.compare(now, retry_at) != :lt
+      end)
+
+    # Process all ready requests
+    Enum.each(ready_requests, fn {request, from, _time} ->
+      case do_handle_request(request) do
+        {:error, :rate_limited, retry_after} ->
+          # If we hit another rate limit, reschedule everything
+          retry_at = DateTime.add(now, retry_after, :second)
+          updated_queue = :queue.from_list(still_waiting ++ [{request, from, retry_at}])
+          Process.send_after(self(), :process_queue, retry_after * 1000)
+          {:noreply, %{state | waiting_queue: updated_queue}}
+
+        result ->
+          GenServer.reply(from, result)
+      end
+    end)
+
+    # If there are still waiting requests, schedule the next check
+    if length(still_waiting) > 0 do
+      {_req, _from, next_retry_at} = hd(still_waiting)
+      wait_time = max(DateTime.diff(next_retry_at, now, :millisecond), 0)
+      Process.send_after(self(), :process_queue, wait_time)
+    end
+
+    {:noreply, %{state | waiting_queue: :queue.from_list(still_waiting)}}
+  end
+
+  # Private request handlers
+  defp do_handle_request({:list_stocks_for_exchange, exchange}) do
+    do_list_stocks_for_exchange(exchange)
+  end
+
+  defp do_handle_request(:list_stocks) do
+    do_list_stocks()
+  end
+
+  defp do_handle_request({:get_stock_logo_url, symbol, exchange}) do
+    do_get_stock_logo_url(symbol, exchange)
+  end
+
+  defp do_handle_request({:get_stock_statistics, symbol, exchange}) do
+    do_get_stock_statistics(symbol, exchange)
+  end
+
+  defp do_handle_request({:get_daily_time_series, symbol, exchange}) do
+    do_get_daily_time_series(symbol, exchange)
+  end
+
+  # API Implementation
+  defp do_list_stocks_for_exchange(exchange) do
+    path = "stocks?exchange=#{exchange}"
+
+    case make_request(path) do
+      {:ok, %{"data" => stocks}} ->
+        {:ok,
+         stocks
+         |> Enum.map(fn stock ->
+           %Stock{
+             symbol: stock["symbol"],
+             name: stock["name"],
+             currency: stock["currency"],
+             exchange: exchange
+           }
+         end)}
+
+      {:error, :rate_limited, retry_after} ->
+        {:error, :rate_limited, retry_after}
+
+      {:error, reason} ->
+        {:error, reason}
+    end
+  end
+
+  defp do_list_stocks() do
+    nasdaq_task = Task.async(fn -> do_list_stocks_for_exchange("NASDAQ") end)
+    nyse_task = Task.async(fn -> do_list_stocks_for_exchange("NYSE") end)
+
+    timeout_5_min = 5 * 60 * 1000
+
+    with {:ok, nasdaq_stocks} <- Task.await(nasdaq_task, timeout_5_min),
+         {:ok, nyse_stocks} <- Task.await(nyse_task, timeout_5_min) do
       {:ok, nasdaq_stocks ++ nyse_stocks}
     else
+      {:error, :rate_limited, retry_after} -> {:error, :rate_limited, retry_after}
       {:error, reason} -> {:error, reason}
     end
   end
 
-  def get_stock_logo_url(symbol, exchange) do
+  defp do_get_stock_logo_url(symbol, exchange) do
     path = "logo?symbol=#{symbol}&exchange=#{exchange}"
 
     case make_request(path) do
-      {:ok, body} ->
-        case Jason.decode(body) do
-          {:ok, %{"url" => url}} -> {:ok, url}
-          {:error, _} -> {:error, "Failed to parse JSON for the #{symbol} stock logo"}
-        end
+      {:ok, %{"url" => url}} ->
+        {:ok, url}
+
+      {:error, :rate_limited, retry_after} ->
+        {:error, :rate_limited, retry_after}
 
       {:error, reason} ->
-        {:error, "HTTP request error for the #{symbol} stock logo: #{reason}"}
+        {:error, reason}
     end
   end
 
-  def get_stock_statistics(symbol, exchange) do
+  defp do_get_stock_statistics(symbol, exchange) do
     path = "statistics?symbol=#{symbol}&exchange=#{exchange}"
 
     case make_request(path) do
-      {:ok, body} ->
-        case Jason.decode(body) do
-          {:ok, %{"statistics" => stats}} ->
-            {:ok,
-             %Statistics{
-               essentials: %Statistics.Essentials{
-                 market_capitalization: stats["valuations_metrics"]["market_capitalization"],
-                 fifty_two_week_high: stats["stock_price_summary"]["fifty_two_week_high"],
-                 fifty_two_week_low: stats["stock_price_summary"]["fifty_two_week_low"]
-               },
-               valuation_and_profitability: %Statistics.ValuationAndProfitability{
-                 trailing_pe: stats["valuations_metrics"]["trailing_pe"],
-                 forward_pe: stats["valuations_metrics"]["forward_pe"],
-                 peg_ratio: stats["valuations_metrics"]["peg_ratio"],
-                 gross_margin: stats["financials"]["gross_margin"],
-                 profit_margin: stats["financials"]["profit_margin"],
-                 return_on_equity: stats["financials"]["return_on_equity_ttm"]
-               },
-               growth_metrics: %Statistics.GrowthMetrics{
-                 quarterly_revenue_growth:
-                   stats["financials"]["income_statement"]["quarterly_revenue_growth"],
-                 quarterly_earnings_growth_yoy:
-                   stats["financials"]["income_statement"]["quarterly_earnings_growth_yoy"]
-               },
-               financial_health: %Statistics.FinancialHealth{
-                 total_cash: stats["financials"]["balance_sheet"]["total_cash_mrq"],
-                 total_debt: stats["financials"]["balance_sheet"]["total_debt_mrq"],
-                 debt_to_equity_ratio:
-                   stats["financials"]["balance_sheet"]["total_debt_to_equity_mrq"],
-                 current_ratio: stats["financials"]["balance_sheet"]["current_ratio_mrq"]
-               },
-               market_trends: %Statistics.MarketTrends{
-                 beta: stats["stock_price_summary"]["beta"],
-                 fifty_two_week_high: stats["stock_price_summary"]["fifty_two_week_high"],
-                 fifty_two_week_low: stats["stock_price_summary"]["fifty_two_week_low"],
-                 fifty_day_moving_average: stats["stock_price_summary"]["day_50_ma"],
-                 two_hundred_day_moving_average: stats["stock_price_summary"]["day_200_ma"]
-               },
-               dividend_information: %Statistics.DividendInformation{
-                 forward_annual_dividend_yield:
-                   stats["dividends_and_splits"]["forward_annual_dividend_yield"],
-                 payout_ratio: stats["dividends_and_splits"]["payout_ratio"]
-               }
-             }}
+      {:ok, %{"statistics" => stats}} ->
+        {:ok,
+         %Statistics{
+           essentials: %Statistics.Essentials{
+             market_capitalization: stats["valuations_metrics"]["market_capitalization"],
+             fifty_two_week_high: stats["stock_price_summary"]["fifty_two_week_high"],
+             fifty_two_week_low: stats["stock_price_summary"]["fifty_two_week_low"]
+           },
+           valuation_and_profitability: %Statistics.ValuationAndProfitability{
+             trailing_pe: stats["valuations_metrics"]["trailing_pe"],
+             forward_pe: stats["valuations_metrics"]["forward_pe"],
+             peg_ratio: stats["valuations_metrics"]["peg_ratio"],
+             gross_margin: stats["financials"]["gross_margin"],
+             profit_margin: stats["financials"]["profit_margin"],
+             return_on_equity: stats["financials"]["return_on_equity_ttm"]
+           },
+           growth_metrics: %Statistics.GrowthMetrics{
+             quarterly_revenue_growth:
+               stats["financials"]["income_statement"]["quarterly_revenue_growth"],
+             quarterly_earnings_growth_yoy:
+               stats["financials"]["income_statement"]["quarterly_earnings_growth_yoy"]
+           },
+           financial_health: %Statistics.FinancialHealth{
+             total_cash: stats["financials"]["balance_sheet"]["total_cash_mrq"],
+             total_debt: stats["financials"]["balance_sheet"]["total_debt_mrq"],
+             debt_to_equity_ratio:
+               stats["financials"]["balance_sheet"]["total_debt_to_equity_mrq"],
+             current_ratio: stats["financials"]["balance_sheet"]["current_ratio_mrq"]
+           },
+           market_trends: %Statistics.MarketTrends{
+             beta: stats["stock_price_summary"]["beta"],
+             fifty_two_week_high: stats["stock_price_summary"]["fifty_two_week_high"],
+             fifty_two_week_low: stats["stock_price_summary"]["fifty_two_week_low"],
+             fifty_day_moving_average: stats["stock_price_summary"]["day_50_ma"],
+             two_hundred_day_moving_average: stats["stock_price_summary"]["day_200_ma"]
+           },
+           dividend_information: %Statistics.DividendInformation{
+             forward_annual_dividend_yield:
+               stats["dividends_and_splits"]["forward_annual_dividend_yield"],
+             payout_ratio: stats["dividends_and_splits"]["payout_ratio"]
+           }
+         }}
 
-          {:error, _} ->
-            {:error, "Failed to parse JSON for the #{symbol} stock statistics"}
-        end
+      {:error, :rate_limited, retry_after} ->
+        {:error, :rate_limited, retry_after}
 
       {:error, reason} ->
-        {:error, "HTTP request error for the #{symbol} stock statistics: #{reason}"}
+        {:error, reason}
     end
   end
 
-  def get_daily_time_series(symbol, exchange) do
+  defp do_get_daily_time_series(symbol, exchange) do
     path = "time_series?symbol=#{symbol}&interval=1day&exchange=#{exchange}"
 
     case make_request(path) do
-      {:ok, body} ->
-        case Jason.decode(body) do
-          {:ok, %{"values" => values}} ->
-            {:ok,
-             values
-             |> Enum.map(fn value ->
-               {:ok, datetime} = Date.from_iso8601(value["datetime"])
+      {:ok, %{"values" => values}} ->
+        {:ok,
+         values
+         |> Enum.map(fn value ->
+           {:ok, datetime} = Date.from_iso8601(value["datetime"])
 
-               %TimeseriesDataPoint{
-                 datetime: datetime,
-                 open: String.to_float(value["open"]),
-                 high: String.to_float(value["high"]),
-                 low: String.to_float(value["low"]),
-                 close: String.to_float(value["close"]),
-                 volume: String.to_integer(value["volume"])
-               }
-             end)}
+           %TimeseriesDataPoint{
+             datetime: datetime,
+             open: String.to_float(value["open"]),
+             high: String.to_float(value["high"]),
+             low: String.to_float(value["low"]),
+             close: String.to_float(value["close"]),
+             volume: String.to_integer(value["volume"])
+           }
+         end)}
 
-          {:error, _} ->
-            {:error, "Failed to parse JSON for the #{symbol} daily time series"}
-        end
+      {:error, :rate_limited, retry_after} ->
+        {:error, :rate_limited, retry_after}
 
       {:error, reason} ->
-        {:error, "HTTP request error for the #{symbol} daily time series: #{reason}"}
+        {:error, reason}
     end
   end
 
@@ -155,7 +260,13 @@ defmodule Stonks.Twelvedata do
 
     case Finch.request(request, Stonks.Finch) do
       {:ok, %Finch.Response{status: 200, body: body}} ->
-        {:ok, body}
+        IO.inspect(body)
+
+        case Jason.decode(body) do
+          {:ok, %{"status" => "error", "code" => 429}} -> {:error, :rate_limited, 60}
+          {:ok, body} -> {:ok, body}
+          _ -> {:error, "Unexpected response body: #{inspect(body)}"}
+        end
 
       {:ok, %Finch.Response{status: status}} ->
         {:error, "Request failed with status code: #{status}"}

@@ -69,7 +69,8 @@ defmodule StonksWeb.StockLive.Index do
         {stock, logo_task}
       end)
       |> Enum.map(fn {stock, logo_task} ->
-        {:ok, logo_url} = Task.await(logo_task)
+        timeout_5_min = 5 * 60 * 1000
+        {:ok, logo_url} = Task.await(logo_task, timeout_5_min)
 
         stock
         |> Map.put(:logo_url, logo_url)

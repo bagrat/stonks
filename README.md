@@ -28,7 +28,8 @@ curl -s https://googlechromelabs.github.io/chrome-for-testing/known-good-version
 
 ## TODOs
 
-- [ ] Handle rate-limit errors from the Twelvedata API
+- [x] Handle rate-limit errors from the Twelvedata API
+  - [ ] Make the retry-after time global, not for individual requests
 - [ ] DRY up Twelvedata client module to use the same code for both the API and the tests
 - [ ] Exclude tests using the real API when running `mix test`
 - [ ] Come up with a strategy to sort the stock without having statistics for all

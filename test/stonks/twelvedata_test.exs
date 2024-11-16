@@ -104,4 +104,14 @@ defmodule Stonks.TwelvedataTest do
 
     assert Enum.all?(stocks, fn stock -> stock.currency == "USD" end)
   end
+
+  @tag timeout: 3 * 60_000
+  test "ensure rate-limited requests are awaited until the rate limit is lifted" do
+    Stonks.Twelvedata.start_link()
+
+    for _ <- 1..15 do
+      {:ok, logo_url} = Stonks.Twelvedata.get_stock_logo_url("AAPL", "NASDAQ")
+      assert logo_url == "https://api.twelvedata.com/logo/apple.com"
+    end
+  end
 end

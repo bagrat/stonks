@@ -17,7 +17,8 @@ defmodule Stonks.Application do
       # Start a worker by calling: Stonks.Worker.start_link(arg)
       # {Stonks.Worker, arg},
       # Start to serve requests, typically the last entry
-      StonksWeb.Endpoint
+      StonksWeb.Endpoint,
+      Stonks.Twelvedata
     ]
 
     # See https://hexdocs.pm/elixir/Supervisor.html
