@@ -1,11 +1,9 @@
 defmodule Stonks.StocksAPI do
-  alias Stonks.Stocks.{Stock, Statistics, TimeseriesDataPoint}
+  alias Stonks.Stocks.{Stock, TimeseriesDataPoint}
   require Logger
 
   @callback list_stocks() :: {:ok, [Stock.t()]} | {:error, any()}
   @callback get_stock_logo_url(String.t(), String.t()) :: {:ok, String.t()} | {:error, any()}
-  @callback get_stock_statistics(String.t(), String.t()) ::
-              {:ok, Statistics.t()} | {:error, any()}
   @callback get_daily_time_series(String.t(), String.t()) ::
               {:ok, [TimeseriesDataPoint.t()]} | {:error, any()}
 
@@ -26,7 +24,7 @@ end
 defmodule Stonks.StocksAPI.Twelvedata do
   use GenServer
   require Logger
-  alias Stonks.Stocks.{Stock, Statistics, TimeseriesDataPoint}
+  alias Stonks.Stocks.{Stock, TimeseriesDataPoint}
 
   @behaviour Stonks.StocksAPI
 
@@ -62,7 +60,6 @@ defmodule Stonks.StocksAPI.Twelvedata do
   # Server Callbacks
   @impl true
   def init(_opts) do
-    # Start with an empty queue and schedule immediate processing
     {:ok, %{waiting_queue: :queue.new()}}
   end
 
@@ -103,7 +100,6 @@ defmodule Stonks.StocksAPI.Twelvedata do
             Process.demonitor(ref, [:flush])
             GenServer.reply(from, result)
 
-            # Schedule immediate processing of next request
             if :queue.len(new_queue) > 0 do
               send(self(), :process_queue)
             end
@@ -112,7 +108,6 @@ defmodule Stonks.StocksAPI.Twelvedata do
         end
 
       {:empty, _} ->
-        # Queue is empty, check again in a short while
         {:noreply, state}
     end
   end
@@ -147,10 +142,6 @@ defmodule Stonks.StocksAPI.Twelvedata do
 
   defp do_handle_request({:get_stock_logo_url, symbol, exchange}) do
     do_get_stock_logo_url(symbol, exchange)
-  end
-
-  defp do_handle_request({:get_stock_statistics, symbol, exchange}) do
-    do_get_stock_statistics(symbol, exchange)
   end
 
   defp do_handle_request({:get_daily_time_series, symbol, exchange}) do
@@ -206,61 +197,6 @@ defmodule Stonks.StocksAPI.Twelvedata do
 
       {:ok, %{"code" => 404}} ->
         {:ok, ""}
-
-      {:error, :rate_limited, retry_after} ->
-        {:error, :rate_limited, retry_after}
-
-      {:error, reason} ->
-        {:error, reason}
-    end
-  end
-
-  defp do_get_stock_statistics(symbol, exchange) do
-    path = "statistics?symbol=#{symbol}&exchange=#{exchange}"
-
-    case make_request(path) do
-      {:ok, %{"statistics" => stats}} ->
-        {:ok,
-         %Statistics{
-           essentials: %Statistics.Essentials{
-             market_capitalization: stats["valuations_metrics"]["market_capitalization"],
-             fifty_two_week_high: stats["stock_price_summary"]["fifty_two_week_high"],
-             fifty_two_week_low: stats["stock_price_summary"]["fifty_two_week_low"]
-           },
-           valuation_and_profitability: %Statistics.ValuationAndProfitability{
-             trailing_pe: stats["valuations_metrics"]["trailing_pe"],
-             forward_pe: stats["valuations_metrics"]["forward_pe"],
-             peg_ratio: stats["valuations_metrics"]["peg_ratio"],
-             gross_margin: stats["financials"]["gross_margin"],
-             profit_margin: stats["financials"]["profit_margin"],
-             return_on_equity: stats["financials"]["return_on_equity_ttm"]
-           },
-           growth_metrics: %Statistics.GrowthMetrics{
-             quarterly_revenue_growth:
-               stats["financials"]["income_statement"]["quarterly_revenue_growth"],
-             quarterly_earnings_growth_yoy:
-               stats["financials"]["income_statement"]["quarterly_earnings_growth_yoy"]
-           },
-           financial_health: %Statistics.FinancialHealth{
-             total_cash: stats["financials"]["balance_sheet"]["total_cash_mrq"],
-             total_debt: stats["financials"]["balance_sheet"]["total_debt_mrq"],
-             debt_to_equity_ratio:
-               stats["financials"]["balance_sheet"]["total_debt_to_equity_mrq"],
-             current_ratio: stats["financials"]["balance_sheet"]["current_ratio_mrq"]
-           },
-           market_trends: %Statistics.MarketTrends{
-             beta: stats["stock_price_summary"]["beta"],
-             fifty_two_week_high: stats["stock_price_summary"]["fifty_two_week_high"],
-             fifty_two_week_low: stats["stock_price_summary"]["fifty_two_week_low"],
-             fifty_day_moving_average: stats["stock_price_summary"]["day_50_ma"],
-             two_hundred_day_moving_average: stats["stock_price_summary"]["day_200_ma"]
-           },
-           dividend_information: %Statistics.DividendInformation{
-             forward_annual_dividend_yield:
-               stats["dividends_and_splits"]["forward_annual_dividend_yield"],
-             payout_ratio: stats["dividends_and_splits"]["payout_ratio"]
-           }
-         }}
 
       {:error, :rate_limited, retry_after} ->
         {:error, :rate_limited, retry_after}
