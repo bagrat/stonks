@@ -2,7 +2,7 @@ defmodule Stonks.BrowserTests.StocksTest do
   use ExUnit.Case, async: true
   use Wallaby.Feature
   import Wallaby.Query
-  import Wallaby.Element
+  alias Wallaby
 
   import Mox
 
@@ -42,6 +42,9 @@ defmodule Stonks.BrowserTests.StocksTest do
     |> stub(:get_stock_logo_url, fn symbol, exchange ->
       {:ok, logos[{symbol, exchange}]}
     end)
+    |> stub(:get_daily_time_series, fn symbol, exchange ->
+      {:ok, []}
+    end)
 
     stock_cards =
       session
@@ -58,7 +61,7 @@ defmodule Stonks.BrowserTests.StocksTest do
         src =
           stock_card
           |> find(css("img"))
-          |> attr("src")
+          |> Element.attr("src")
 
         assert src =~ "/images/logo-#{i + 1}.svg"
       end)

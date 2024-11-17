@@ -14,7 +14,8 @@ defmodule StonksWeb.StockLive.Index do
     {:ok,
      socket
      |> assign(:total_pages, total_pages)
-     |> assign(:all_stocks, all_stocks)}
+     |> assign(:all_stocks, all_stocks)
+     |> assign(:details_task, nil)}
   end
 
   @impl true
@@ -28,12 +29,26 @@ defmodule StonksWeb.StockLive.Index do
   end
 
   @impl true
-  def handle_info({ref, stocks_with_details}, socket) when is_reference(ref) do
+  def handle_info(
+        {
+          details_task_ref,
+          stocks_with_details
+        },
+        %{assigns: %{details_task: %{ref: details_task_ref}}} = socket
+      )
+      when is_reference(details_task_ref) do
     {:noreply, socket |> assign(:stocks, stocks_with_details)}
   end
 
   @impl true
-  def handle_info({:DOWN, ref, :process, _pid, :normal}, socket) do
+  def handle_info(
+        {:DOWN, _ref, :process, details_task_pid, :normal},
+        %{assigns: %{details_task: %{pid: details_task_pid}}} = socket
+      ) do
+    Logger.debug(
+      "Successfully fetched details for all stocks for page #{socket.assigns.current_page}"
+    )
+
     {:noreply, socket}
   end
 
@@ -50,30 +65,32 @@ defmodule StonksWeb.StockLive.Index do
         |> Map.put(:time_series, nil)
       end)
 
-    Task.async(fn ->
-      stocks
-      |> Enum.map(fn stock ->
-        timeseries_task =
-          Task.async(fn ->
-            Stonks.StocksAPI.get_daily_time_series(stock.symbol, stock.exchange)
-          end)
+    details_task =
+      Task.async(fn ->
+        stocks
+        |> Enum.map(fn stock ->
+          timeseries_task =
+            Task.async(fn ->
+              Stonks.StocksAPI.get_daily_time_series(stock.symbol, stock.exchange)
+            end)
 
-        logo_task =
-          Task.async(fn ->
-            Stonks.StocksAPI.get_stock_logo_url(stock.symbol, stock.exchange)
-          end)
+          logo_task =
+            Task.async(fn ->
+              Stonks.StocksAPI.get_stock_logo_url(stock.symbol, stock.exchange)
+            end)
 
-        {:ok, time_series} = Task.await(timeseries_task, 5 * 60000)
-        {:ok, logo_url} = Task.await(logo_task, 5 * 60000)
+          {:ok, time_series} = Task.await(timeseries_task, 5 * 60000)
+          {:ok, logo_url} = Task.await(logo_task, 5 * 60000)
 
-        stock
-        |> Map.put(:time_series, time_series)
-        |> Map.put(:logo_url, logo_url)
+          stock
+          |> Map.put(:time_series, time_series)
+          |> Map.put(:logo_url, logo_url)
+        end)
       end)
-    end)
 
     socket
     |> assign(:stocks, stocks)
+    |> assign(:details_task, details_task)
   end
 
   defp assign_pages_to_show(socket) do
@@ -115,6 +132,18 @@ defmodule StonksWeb.StockLive.Index do
       requested_page
       |> max(1)
       |> min(socket.assigns.total_pages)
+
+    socket =
+      case socket.assigns.details_task do
+        nil ->
+          socket
+
+        task ->
+          Task.shutdown(task)
+
+          socket
+          |> assign(:details_task, nil)
+      end
 
     socket
     |> assign(:page_title, "Stocks")

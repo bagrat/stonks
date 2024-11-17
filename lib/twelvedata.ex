@@ -63,63 +63,71 @@ defmodule Stonks.StocksAPI.Twelvedata do
   # Server Callbacks
   @impl true
   def init(_opts) do
+    # Start with an empty queue and schedule immediate processing
+    send(self(), :process_queue)
     {:ok, %{waiting_queue: :queue.new()}}
   end
 
   @impl true
-  def handle_call(request, from, %{waiting_queue: queue} = state) do
-    case do_handle_request(request) do
-      {:error, :rate_limited, retry_after} ->
-        # Calculate when to retry
-        retry_at = DateTime.add(DateTime.utc_now(), retry_after, :second)
-        Logger.info("Rate limited, will retry after #{retry_after} seconds")
+  def handle_call(request, {from_pid, _} = from, %{waiting_queue: queue} = state) do
+    # Monitor the calling process
+    ref = Process.monitor(from_pid)
 
-        # Schedule the retry
-        Process.send_after(self(), :process_queue, retry_after * 1000)
+    # Queue the request immediately
+    updated_queue = :queue.in({request, from, DateTime.utc_now(), ref}, queue)
 
-        # Add this request to the queue
-        updated_queue = :queue.in({request, from, retry_at}, queue)
-        {:noreply, %{state | waiting_queue: updated_queue}}
-
-      result ->
-        {:reply, result, state}
-    end
+    # Return immediately, letting the process_queue handle the request
+    {:noreply, %{state | waiting_queue: updated_queue}}
   end
 
   @impl true
   def handle_info(:process_queue, %{waiting_queue: queue} = state) do
-    now = DateTime.utc_now()
+    case :queue.out(queue) do
+      {{:value, {request, from, _enqueued_at, ref}}, new_queue} ->
+        case do_handle_request(request) do
+          {:error, :rate_limited, retry_after} ->
+            # If rate limited, re-queue with a future retry time
+            retry_at = DateTime.add(DateTime.utc_now(), retry_after, :second)
+            updated_queue = :queue.in({request, from, retry_at, ref}, new_queue)
 
-    {ready_requests, still_waiting} =
+            # Schedule next processing after the retry delay
+            Process.send_after(self(), :process_queue, retry_after * 1000)
+            {:noreply, %{state | waiting_queue: updated_queue}}
+
+          result ->
+            # Request succeeded, demonitor and reply
+            Process.demonitor(ref, [:flush])
+            GenServer.reply(from, result)
+
+            # Schedule immediate processing of next request
+            send(self(), :process_queue)
+            {:noreply, %{state | waiting_queue: new_queue}}
+        end
+
+      {:empty, _} ->
+        # Queue is empty, check again in a short while
+        Process.send_after(self(), :process_queue, 100)
+        {:noreply, state}
+    end
+  end
+
+  # Handle DOWN messages from monitored processes
+  @impl true
+  def handle_info({:DOWN, ref, :process, pid, _reason}, %{waiting_queue: queue} = state) do
+    # Remove any queued requests from the terminated process
+    updated_queue =
       queue
       |> :queue.to_list()
-      |> Enum.split_with(fn {_req, _from, retry_at} ->
-        DateTime.compare(now, retry_at) != :lt
+      |> Enum.reject(fn {_req, {from_pid, _}, _time, request_ref} ->
+        from_pid == pid || request_ref == ref
       end)
+      |> Enum.map(fn {req, from, time, ref} ->
+        Logger.debug("Removing request #{inspect(req)} from #{inspect(from)}")
+        {req, from, time, ref}
+      end)
+      |> :queue.from_list()
 
-    # Process all ready requests
-    Enum.each(ready_requests, fn {request, from, _time} ->
-      case do_handle_request(request) do
-        {:error, :rate_limited, retry_after} ->
-          # If we hit another rate limit, reschedule everything
-          retry_at = DateTime.add(now, retry_after, :second)
-          updated_queue = :queue.from_list(still_waiting ++ [{request, from, retry_at}])
-          Process.send_after(self(), :process_queue, retry_after * 1000)
-          {:noreply, %{state | waiting_queue: updated_queue}}
-
-        result ->
-          GenServer.reply(from, result)
-      end
-    end)
-
-    # If there are still waiting requests, schedule the next check
-    if length(still_waiting) > 0 do
-      {_req, _from, next_retry_at} = hd(still_waiting)
-      wait_time = max(DateTime.diff(next_retry_at, now, :millisecond), 0)
-      Process.send_after(self(), :process_queue, wait_time)
-    end
-
-    {:noreply, %{state | waiting_queue: :queue.from_list(still_waiting)}}
+    {:noreply, %{state | waiting_queue: updated_queue}}
   end
 
   # Private request handlers
