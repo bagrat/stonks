@@ -2,7 +2,7 @@
   <div class="relative">
     <div
       :for={stock <- @stocks}
-      class="flex hover:bg-zinc-50 my-3 py-2 px-3 hover:cursor-pointer items-center"
+      class="stock-card flex hover:bg-zinc-50 my-3 py-2 px-3 hover:cursor-pointer items-center"
     >
       <div class="relative w-10 h-10">
         <%= case stock.logo_url do %>
@@ -24,8 +24,8 @@
       </div>
 
       <div class="flex flex-col pl-3">
-        <div class="p-0 font-medium text-lg"><%= stock.symbol %></div>
-        <div class="p-0 text-xs text-zinc-400 max-w-56 truncate group">
+        <div class="stock-symbol p-0 font-medium text-lg"><%= stock.symbol %></div>
+        <div class="stock-name p-0 text-xs text-zinc-400 max-w-56 truncate group">
           <%= stock.name %>
         </div>
       </div>

@@ -4,6 +4,6 @@ defmodule Stonks.Sandbox do
     Ecto.Adapters.SQL.Sandbox.allow(repo, owner_pid, child_pid)
 
     # Add custom process-sharing configuration
-    # Mox.allow(MyMock, owner_pid, child_pid)
+    Mox.allow(Stonks.StocksAPI.Mock, owner_pid, child_pid)
   end
 end

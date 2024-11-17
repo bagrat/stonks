@@ -37,8 +37,7 @@ config :wallaby,
   otp_app: :stonks,
   chromedriver: [
     headless: false
-  ],
-  slow_down: 600
+  ]
 
 config :stonks, :sandbox, Stonks.Sandbox
 

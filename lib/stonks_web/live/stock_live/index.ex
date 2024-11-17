@@ -28,6 +28,11 @@ defmodule StonksWeb.StockLive.Index do
   end
 
   @impl true
+  def handle_info({:EXIT, _pid, :normal}, socket) do
+    {:noreply, socket}
+  end
+
+  @impl true
   def handle_info({ref, {:ok, logo_url}}, socket) when is_reference(ref) do
     # Find the stock that matches this task reference
     case Enum.find(socket.assigns.logo_tasks, fn {_key, task_ref} -> task_ref == ref end) do
