@@ -36,14 +36,18 @@
         id={"chart-container-#{stock.exchange}-#{stock.symbol}"}
         data-symbol={stock.symbol}
         data-exchange={stock.exchange}
-        class="h-[1.5rem] w-[4rem] flex-shrink-0 border border-green-500 rounded-md px-0.5 py-0.25 bg-green-50 hover:bg-green-100"
-        phx-update="ignore"
+        class="preview-chart h-[1.5rem] w-[4rem] flex-shrink-0 border border-green-500 rounded-md px-0.5 py-0.25 bg-green-50 hover:bg-green-100"
         phx-hook="StockChart"
       >
         <canvas id={"chart-#{stock.exchange}-#{stock.symbol}"} style="height: 100%; width: 100%;">
         </canvas>
 
-        <timeseries class="hidden" data-symbol={stock.symbol} data-exchange={stock.exchange}>
+        <timeseries
+          :if={stock.time_series != nil}
+          class="hidden"
+          data-symbol={stock.symbol}
+          data-exchange={stock.exchange}
+        >
           <datapoint
             :for={data_point <- stock.time_series}
             data-datetime={data_point.datetime}

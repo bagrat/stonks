@@ -9,17 +9,12 @@ defmodule StonksWeb.StockLive.Index do
     {:ok, all_stocks} =
       Stonks.StocksAPI.list_stocks()
 
-    all_stocks =
-      all_stocks
-      |> Enum.map(fn stock -> Map.put(stock, :logo_url, :loading) end)
-
     total_pages = (length(all_stocks) / @stocks_per_page) |> ceil()
 
     {:ok,
      socket
      |> assign(:total_pages, total_pages)
-     |> assign(:all_stocks, all_stocks)
-     |> assign(:logo_tasks, %{})}
+     |> assign(:all_stocks, all_stocks)}
   end
 
   @impl true
@@ -33,37 +28,13 @@ defmodule StonksWeb.StockLive.Index do
   end
 
   @impl true
-  def handle_info({ref, {:ok, logo_url}}, socket) when is_reference(ref) do
-    # Find the stock that matches this task reference
-    case Enum.find(socket.assigns.logo_tasks, fn {_key, task_ref} -> task_ref == ref end) do
-      {{symbol, exchange}, _ref} ->
-        # Update all stocks that were waiting for this URL
-        updated_stocks =
-          Enum.map(socket.assigns.all_stocks, fn stock ->
-            if stock.symbol == symbol && stock.exchange == exchange do
-              Map.put(stock, :logo_url, logo_url)
-            else
-              stock
-            end
-          end)
-
-        socket =
-          socket
-          |> assign(:all_stocks, updated_stocks)
-          |> assign_stocks_for_page()
-
-        {:noreply, socket}
-
-      nil ->
-        {:noreply, socket}
-    end
+  def handle_info({ref, stocks_with_details}, socket) when is_reference(ref) do
+    {:noreply, socket |> assign(:stocks, stocks_with_details)}
   end
 
   @impl true
   def handle_info({:DOWN, ref, :process, _pid, :normal}, socket) do
-    # Remove the completed task from our task map
-    {key, _} = Enum.find(socket.assigns.logo_tasks, fn {_key, task_ref} -> task_ref == ref end)
-    {:noreply, assign(socket, :logo_tasks, Map.delete(socket.assigns.logo_tasks, key))}
+    {:noreply, socket}
   end
 
   defp assign_stocks_for_page(socket) do
@@ -71,51 +42,38 @@ defmodule StonksWeb.StockLive.Index do
       socket.assigns.all_stocks
       |> Enum.slice((socket.assigns.current_page - 1) * @stocks_per_page, @stocks_per_page)
 
-    # Start tasks for fetching logos
-    stocks_without_logo_urls =
+    stocks =
       stocks
-      |> Enum.filter(fn stock -> Map.get(stock, :logo_url) == :loading end)
-
-    stocks_without_pending_logo_tasks =
-      stocks_without_logo_urls
-      |> Enum.filter(fn stock ->
-        not Map.has_key?(socket.assigns.logo_tasks, {stock.symbol, stock.exchange})
+      |> Enum.map(fn stock ->
+        stock
+        |> Map.put(:logo_url, nil)
+        |> Map.put(:time_series, nil)
       end)
 
-    new_logo_tasks =
-      stocks_without_pending_logo_tasks
+    Task.async(fn ->
+      stocks
       |> Enum.map(fn stock ->
-        task =
+        timeseries_task =
+          Task.async(fn ->
+            Stonks.StocksAPI.get_daily_time_series(stock.symbol, stock.exchange)
+          end)
+
+        logo_task =
           Task.async(fn ->
             Stonks.StocksAPI.get_stock_logo_url(stock.symbol, stock.exchange)
           end)
 
-        {{stock.symbol, stock.exchange}, task.ref}
-      end)
-      |> Map.new()
+        {:ok, time_series} = Task.await(timeseries_task, 5 * 60000)
+        {:ok, logo_url} = Task.await(logo_task, 5 * 60000)
 
-    stocks =
-      stocks
-      |> Enum.map(fn stock ->
-        case Map.get(stock, :logo_url) do
-          nil -> Map.put(stock, :logo_url, :loading)
-          _ -> stock
-        end
+        stock
+        |> Map.put(:time_series, time_series)
+        |> Map.put(:logo_url, logo_url)
       end)
-      |> Enum.map(fn stock ->
-        {stock,
-         Task.async(fn ->
-           Stonks.StocksAPI.get_daily_time_series(stock.symbol, stock.exchange)
-         end)}
-      end)
-      |> Enum.map(fn {stock, task} ->
-        {:ok, time_series} = Task.await(task, 5 * 60000)
-        Map.put(stock, :time_series, time_series)
-      end)
+    end)
 
     socket
     |> assign(:stocks, stocks)
-    |> assign(:logo_tasks, Map.merge(socket.assigns.logo_tasks, new_logo_tasks))
   end
 
   defp assign_pages_to_show(socket) do

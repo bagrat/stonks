@@ -2,6 +2,14 @@ import Chart from "chart.js/auto"
 
 const StockChart = {
   mounted() {
+    this.initChart()
+  },
+
+  updated() {
+    this.initChart()
+  },
+
+  initChart() {
     const el = this.el
     const symbol = el.dataset.symbol
     const exchange = el.dataset.exchange
@@ -26,7 +34,12 @@ const StockChart = {
 
     console.log(dataPoints)
 
-    const chart = new Chart(canvas, {
+    // Destroy existing chart if it exists
+    if (this.chart) {
+      this.chart.destroy()
+    }
+
+    this.chart = new Chart(canvas, {
       type: "line",
       data: {
         labels: dataPoints.map((dp) => dp.datetime),
