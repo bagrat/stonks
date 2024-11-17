@@ -102,6 +102,16 @@ defmodule StonksWeb.StockLive.Index do
           _ -> stock
         end
       end)
+      |> Enum.map(fn stock ->
+        {stock,
+         Task.async(fn ->
+           Stonks.StocksAPI.get_daily_time_series(stock.symbol, stock.exchange)
+         end)}
+      end)
+      |> Enum.map(fn {stock, task} ->
+        {:ok, time_series} = Task.await(task, 5 * 60000)
+        Map.put(stock, :time_series, time_series)
+      end)
 
     socket
     |> assign(:stocks, stocks)
