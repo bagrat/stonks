@@ -12,7 +12,6 @@ defmodule Stonks.StocksAPI do
   def list_stocks(), do: impl().list_stocks()
 
   def get_stock_logo_url(symbol, exchange) do
-    Logger.info("Getting logo URL for #{symbol} on #{exchange}")
     impl().get_stock_logo_url(symbol, exchange)
   end
 
@@ -64,7 +63,6 @@ defmodule Stonks.StocksAPI.Twelvedata do
   @impl true
   def init(_opts) do
     # Start with an empty queue and schedule immediate processing
-    send(self(), :process_queue)
     {:ok, %{waiting_queue: :queue.new()}}
   end
 
@@ -74,7 +72,10 @@ defmodule Stonks.StocksAPI.Twelvedata do
     ref = Process.monitor(from_pid)
 
     # Queue the request immediately
+    Logger.debug("Queueing request #{inspect(request)}, current queue size: #{:queue.len(queue)}")
     updated_queue = :queue.in({request, from, DateTime.utc_now(), ref}, queue)
+
+    send(self(), :process_queue)
 
     # Return immediately, letting the process_queue handle the request
     {:noreply, %{state | waiting_queue: updated_queue}}
@@ -82,6 +83,8 @@ defmodule Stonks.StocksAPI.Twelvedata do
 
   @impl true
   def handle_info(:process_queue, %{waiting_queue: queue} = state) do
+    Logger.debug("Processing queue, current queue size: #{:queue.len(queue)}")
+
     case :queue.out(queue) do
       {{:value, {request, from, _enqueued_at, ref}}, new_queue} ->
         case do_handle_request(request) do
@@ -89,6 +92,7 @@ defmodule Stonks.StocksAPI.Twelvedata do
             # If rate limited, re-queue with a future retry time
             retry_at = DateTime.add(DateTime.utc_now(), retry_after, :second)
             updated_queue = :queue.in({request, from, retry_at, ref}, new_queue)
+            Logger.debug("Requeued request #{inspect(request)}")
 
             # Schedule next processing after the retry delay
             Process.send_after(self(), :process_queue, retry_after * 1000)
@@ -100,13 +104,15 @@ defmodule Stonks.StocksAPI.Twelvedata do
             GenServer.reply(from, result)
 
             # Schedule immediate processing of next request
-            send(self(), :process_queue)
+            if :queue.len(new_queue) > 0 do
+              send(self(), :process_queue)
+            end
+
             {:noreply, %{state | waiting_queue: new_queue}}
         end
 
       {:empty, _} ->
         # Queue is empty, check again in a short while
-        Process.send_after(self(), :process_queue, 100)
         {:noreply, state}
     end
   end
@@ -284,6 +290,9 @@ defmodule Stonks.StocksAPI.Twelvedata do
            }
          end)}
 
+      {:ok, %{"code" => 404}} ->
+        {:ok, []}
+
       {:error, :rate_limited, retry_after} ->
         {:error, :rate_limited, retry_after}
 
@@ -301,19 +310,33 @@ defmodule Stonks.StocksAPI.Twelvedata do
         {"Authorization", "apikey #{api_key}"}
       ])
 
-    case Finch.request(request, Stonks.Finch) do
-      {:ok, %Finch.Response{status: 200, body: body}} ->
-        case Jason.decode(body) do
-          {:ok, %{"status" => "error", "code" => 429}} -> {:error, :rate_limited, 60}
-          {:ok, body} -> {:ok, body}
-          _ -> {:error, "Unexpected response body: #{inspect(body)}"}
-        end
+    result =
+      case Finch.request(request, Stonks.Finch) do
+        {:ok, %Finch.Response{status: 200, body: body}} ->
+          case Jason.decode(body) do
+            {:ok, %{"status" => "error", "code" => 429}} -> {:error, :rate_limited, 60}
+            {:ok, body} -> {:ok, body}
+            _ -> {:error, "Unexpected response body: #{inspect(body)}"}
+          end
 
-      {:ok, %Finch.Response{status: status}} ->
-        {:error, "Request failed with status code: #{status}"}
+        {:ok, %Finch.Response{status: status}} ->
+          {:error, "Request failed with status code: #{status}"}
 
-      {:error, reason} ->
-        {:error, reason}
+        {:error, reason} ->
+          {:error, reason}
+      end
+
+    case result do
+      {:ok, _} ->
+        Logger.debug("Request to #{url} succeeded")
+
+      {:error, :rate_limited, _retry_after} ->
+        Logger.debug("Rate limited request to #{url}")
+
+      _ ->
+        Logger.debug("Failed request to #{url} result: #{inspect(result)}")
     end
+
+    result
   end
 end
