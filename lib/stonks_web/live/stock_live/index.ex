@@ -15,7 +15,8 @@ defmodule StonksWeb.StockLive.Index do
      socket
      |> assign(:total_pages, total_pages)
      |> assign(:all_stocks, all_stocks)
-     |> assign(:details_task, nil)}
+     |> assign(:details_task, nil)
+     |> assign(:details_loading, true)}
   end
 
   @impl true
@@ -37,7 +38,10 @@ defmodule StonksWeb.StockLive.Index do
         %{assigns: %{details_task: %{ref: details_task_ref}}} = socket
       )
       when is_reference(details_task_ref) do
-    {:noreply, socket |> assign(:stocks, stocks_with_details)}
+    {:noreply,
+     socket
+     |> assign(:stocks, stocks_with_details)
+     |> assign(:details_loading, false)}
   end
 
   @impl true
@@ -91,6 +95,7 @@ defmodule StonksWeb.StockLive.Index do
     socket
     |> assign(:stocks, stocks)
     |> assign(:details_task, details_task)
+    |> assign(:details_loading, true)
   end
 
   defp assign_pages_to_show(socket) do
