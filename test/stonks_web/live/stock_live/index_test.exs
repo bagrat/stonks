@@ -5,7 +5,7 @@ defmodule StonksWeb.StockLiveTest do
 
   setup :verify_on_exit!
 
-  test "fetches each logo exactly once", %{conn: conn} do
+  test "fetches details for each stock exactly once per mount", %{conn: conn} do
     test_stocks = [
       %Stonks.Stocks.Stock{
         symbol: "AAPL",
@@ -33,6 +33,11 @@ defmodule StonksWeb.StockLiveTest do
       "AAPL", "NASDAQ" -> {:ok, "https://example.com/AAPL.png"}
       "MSFT", "NASDAQ" -> {:ok, "https://example.com/MSFT.png"}
       "GOOG", "NASDAQ" -> {:ok, "https://example.com/GOOG.png"}
+    end)
+    |> expect(:get_daily_time_series, 6, fn
+      "AAPL", "NASDAQ" -> {:ok, []}
+      "MSFT", "NASDAQ" -> {:ok, []}
+      "GOOG", "NASDAQ" -> {:ok, []}
     end)
 
     {:ok, view, _html} = live(conn, "/")
