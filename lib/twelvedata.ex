@@ -48,11 +48,6 @@ defmodule Stonks.StocksAPI.Twelvedata do
   end
 
   @impl true
-  def get_stock_statistics(symbol, exchange) do
-    GenServer.call(__MODULE__, {:get_stock_statistics, symbol, exchange}, :infinity)
-  end
-
-  @impl true
   def get_daily_time_series(symbol, exchange) do
     GenServer.call(__MODULE__, {:get_daily_time_series, symbol, exchange}, :infinity)
   end
