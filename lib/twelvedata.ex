@@ -158,6 +158,9 @@ defmodule Stonks.Twelvedata do
       {:ok, %{"url" => url}} ->
         {:ok, url}
 
+      {:ok, %{"code" => 404}} ->
+        {:ok, ""}
+
       {:error, :rate_limited, retry_after} ->
         {:error, :rate_limited, retry_after}
 
