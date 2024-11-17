@@ -6,14 +6,20 @@ defmodule StonksWeb.StockLive.Index do
 
   @impl true
   def mount(_params, _session, socket) do
-    {:ok, all_stocks} = Stonks.Twelvedata.list_stocks()
+    {:ok, all_stocks} =
+      Stonks.StocksAPI.list_stocks()
+
+    all_stocks =
+      all_stocks
+      |> Enum.map(fn stock -> Map.put(stock, :logo_url, :loading) end)
+
     total_pages = (length(all_stocks) / @stocks_per_page) |> ceil()
 
     {:ok,
      socket
      |> assign(:total_pages, total_pages)
      |> assign(:all_stocks, all_stocks)
-     |> assign(:logo_tasks, [])}
+     |> assign(:logo_tasks, %{})}
   end
 
   @impl true
@@ -24,15 +30,15 @@ defmodule StonksWeb.StockLive.Index do
   @impl true
   def handle_info({ref, {:ok, logo_url}}, socket) when is_reference(ref) do
     # Find the stock that matches this task reference
-    case Enum.find(socket.assigns.logo_tasks, fn {_stock, task_ref} -> task_ref == ref end) do
-      {stock, _} ->
-        # Update the stock's logo URL in the stocks list
+    case Enum.find(socket.assigns.logo_tasks, fn {_key, task_ref} -> task_ref == ref end) do
+      {{symbol, exchange}, _ref} ->
+        # Update all stocks that were waiting for this URL
         updated_stocks =
-          Enum.map(socket.assigns.all_stocks, fn s ->
-            if s.symbol == stock.symbol && s.exchange == stock.exchange do
-              Map.put(s, :logo_url, logo_url)
+          Enum.map(socket.assigns.all_stocks, fn stock ->
+            if stock.symbol == symbol && stock.exchange == exchange do
+              Map.put(stock, :logo_url, logo_url)
             else
-              s
+              stock
             end
           end)
 
@@ -41,7 +47,6 @@ defmodule StonksWeb.StockLive.Index do
           |> assign(:all_stocks, updated_stocks)
           |> assign_stocks_for_page()
 
-        # {:noreply, assign(socket, :stocks, updated_stocks)}
         {:noreply, socket}
 
       nil ->
@@ -51,11 +56,9 @@ defmodule StonksWeb.StockLive.Index do
 
   @impl true
   def handle_info({:DOWN, ref, :process, _pid, :normal}, socket) do
-    # Remove the completed task from our task list
-    updated_tasks =
-      Enum.reject(socket.assigns.logo_tasks, fn {_, task_ref} -> task_ref == ref end)
-
-    {:noreply, assign(socket, :logo_tasks, updated_tasks)}
+    # Remove the completed task from our task map
+    {key, _} = Enum.find(socket.assigns.logo_tasks, fn {_key, task_ref} -> task_ref == ref end)
+    {:noreply, assign(socket, :logo_tasks, Map.delete(socket.assigns.logo_tasks, key))}
   end
 
   defp assign_stocks_for_page(socket) do
@@ -64,24 +67,27 @@ defmodule StonksWeb.StockLive.Index do
       |> Enum.slice((socket.assigns.current_page - 1) * @stocks_per_page, @stocks_per_page)
 
     # Start tasks for fetching logos
-    stock_without_logo_urls =
+    stocks_without_logo_urls =
       stocks
-      |> Enum.filter(fn stock -> Map.get(stock, :logo_url) == nil end)
+      |> Enum.filter(fn stock -> Map.get(stock, :logo_url) == :loading end)
 
-    logo_tasks =
-      stock_without_logo_urls
+    stocks_without_pending_logo_tasks =
+      stocks_without_logo_urls
+      |> Enum.filter(fn stock ->
+        not Map.has_key?(socket.assigns.logo_tasks, {stock.symbol, stock.exchange})
+      end)
+
+    new_logo_tasks =
+      stocks_without_pending_logo_tasks
       |> Enum.map(fn stock ->
         task =
           Task.async(fn ->
-            case Stonks.Twelvedata.get_stock_logo_url(stock.symbol, stock.exchange) do
-              {:ok, url} -> {:ok, url}
-              # Handle errors gracefully
-              {:error, _} -> {:ok, nil}
-            end
+            Stonks.StocksAPI.get_stock_logo_url(stock.symbol, stock.exchange)
           end)
 
-        {stock, task.ref}
+        {{stock.symbol, stock.exchange}, task.ref}
       end)
+      |> Map.new()
 
     stocks =
       stocks
@@ -94,7 +100,7 @@ defmodule StonksWeb.StockLive.Index do
 
     socket
     |> assign(:stocks, stocks)
-    |> assign(:logo_tasks, socket.assigns.logo_tasks ++ logo_tasks)
+    |> assign(:logo_tasks, Map.merge(socket.assigns.logo_tasks, new_logo_tasks))
   end
 
   defp assign_pages_to_show(socket) do
@@ -144,7 +150,7 @@ defmodule StonksWeb.StockLive.Index do
     |> assign_pages_to_show()
     |> then(fn socket ->
       if requested_page != current_page do
-        push_patch(socket, to: ~p"/?current_page=#{current_page}")
+        push_patch(socket, to: ~p"/?page=#{current_page}")
       else
         socket
       end

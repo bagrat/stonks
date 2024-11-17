@@ -58,7 +58,8 @@ defmodule Stonks.MixProject do
       {:jason, "~> 1.2"},
       {:dns_cluster, "~> 0.1.1"},
       {:wallaby, "~> 0.30", runtime: false, only: :test},
-      {:bandit, "~> 1.2"}
+      {:bandit, "~> 1.2"},
+      {:mox, "~> 1.0", only: :test}
     ]
   end
 

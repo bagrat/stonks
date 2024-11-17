@@ -1,7 +1,35 @@
-defmodule Stonks.Twelvedata do
+defmodule Stonks.StocksAPI do
+  alias Stonks.Stocks.{Stock, Statistics, TimeseriesDataPoint}
+  require Logger
+
+  @callback list_stocks() :: {:ok, [Stock.t()]} | {:error, any()}
+  @callback get_stock_logo_url(String.t(), String.t()) :: {:ok, String.t()} | {:error, any()}
+  @callback get_stock_statistics(String.t(), String.t()) ::
+              {:ok, Statistics.t()} | {:error, any()}
+  @callback get_daily_time_series(String.t(), String.t()) ::
+              {:ok, [TimeseriesDataPoint.t()]} | {:error, any()}
+
+  def list_stocks(), do: impl().list_stocks()
+
+  def get_stock_logo_url(symbol, exchange) do
+    Logger.info("Getting logo URL for #{symbol} on #{exchange}")
+    impl().get_stock_logo_url(symbol, exchange)
+  end
+
+  def get_stock_statistics(symbol, exchange), do: impl().get_stock_statistics(symbol, exchange)
+  def get_daily_time_series(symbol, exchange), do: impl().get_daily_time_series(symbol, exchange)
+
+  defp impl() do
+    Application.get_env(:stonks, :stocks_api, Stonks.StocksAPI.Twelvedata)
+  end
+end
+
+defmodule Stonks.StocksAPI.Twelvedata do
   use GenServer
   require Logger
   alias Stonks.Stocks.{Stock, Statistics, TimeseriesDataPoint}
+
+  @behaviour Stonks.StocksAPI
 
   # Client API
   def start_link(_opts \\ []) do
@@ -12,18 +40,22 @@ defmodule Stonks.Twelvedata do
     GenServer.call(__MODULE__, {:list_stocks_for_exchange, exchange}, :infinity)
   end
 
+  @impl true
   def list_stocks() do
     GenServer.call(__MODULE__, :list_stocks, :infinity)
   end
 
+  @impl true
   def get_stock_logo_url(symbol, exchange) do
     GenServer.call(__MODULE__, {:get_stock_logo_url, symbol, exchange}, :infinity)
   end
 
+  @impl true
   def get_stock_statistics(symbol, exchange) do
     GenServer.call(__MODULE__, {:get_stock_statistics, symbol, exchange}, :infinity)
   end
 
+  @impl true
   def get_daily_time_series(symbol, exchange) do
     GenServer.call(__MODULE__, {:get_daily_time_series, symbol, exchange}, :infinity)
   end
@@ -263,8 +295,6 @@ defmodule Stonks.Twelvedata do
 
     case Finch.request(request, Stonks.Finch) do
       {:ok, %Finch.Response{status: 200, body: body}} ->
-        IO.inspect(body)
-
         case Jason.decode(body) do
           {:ok, %{"status" => "error", "code" => 429}} -> {:error, :rate_limited, 60}
           {:ok, body} -> {:ok, body}
