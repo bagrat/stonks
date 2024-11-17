@@ -2,7 +2,7 @@ defmodule Stonks.TwelvedataTest do
   use ExUnit.Case, async: true
 
   test "list_stocks/0 should return stocks from NASDAQ and NYSE" do
-    {:ok, stocks} = Stonks.Twelvedata.list_stocks()
+    {:ok, stocks} = Stonks.StocksAPI.Twelvedata.list_stocks()
 
     assert is_list(stocks)
     assert length(stocks) > 0
@@ -26,7 +26,7 @@ defmodule Stonks.TwelvedataTest do
   end
 
   test "get_stock_statistics/1 should return stock statistics" do
-    {:ok, statistics} = Stonks.Twelvedata.get_stock_statistics("AAPL", "NASDAQ")
+    {:ok, statistics} = Stonks.StocksAPI.Twelvedata.get_stock_statistics("TSLA", "NASDAQ")
 
     assert is_map(statistics)
 
@@ -69,13 +69,13 @@ defmodule Stonks.TwelvedataTest do
   end
 
   test "get_stock_logo_url/1 should return the logo URL for a stock" do
-    {:ok, logo_url} = Stonks.Twelvedata.get_stock_logo_url("AAPL", "NASDAQ")
+    {:ok, logo_url} = Stonks.StocksAPI.Twelvedata.get_stock_logo_url("TSLA", "NASDAQ")
 
-    assert logo_url == "https://api.twelvedata.com/logo/apple.com"
+    assert logo_url == "https://api.twelvedata.com/logo/tesla.com"
   end
 
   test "get_daily_time_series/1 should return the daily time series for a stock" do
-    {:ok, timeseries} = Stonks.Twelvedata.get_daily_time_series("AAPL", "NASDAQ")
+    {:ok, timeseries} = Stonks.StocksAPI.Twelvedata.get_daily_time_series("TSLA", "NASDAQ")
 
     assert is_list(timeseries)
     assert length(timeseries) == 30
@@ -100,18 +100,18 @@ defmodule Stonks.TwelvedataTest do
   end
 
   test "ensure all stocks are in USD so that we can safely emit it in the UI" do
-    {:ok, stocks} = Stonks.Twelvedata.list_stocks()
+    {:ok, stocks} = Stonks.StocksAPI.Twelvedata.list_stocks()
 
     assert Enum.all?(stocks, fn stock -> stock.currency == "USD" end)
   end
 
   @tag timeout: 3 * 60_000
   test "ensure rate-limited requests are awaited until the rate limit is lifted" do
-    Stonks.Twelvedata.start_link()
+    Stonks.StocksAPI.Twelvedata.start_link()
 
     for _ <- 1..15 do
-      {:ok, logo_url} = Stonks.Twelvedata.get_stock_logo_url("AAPL", "NASDAQ")
-      assert logo_url == "https://api.twelvedata.com/logo/apple.com"
+      {:ok, logo_url} = Stonks.StocksAPI.Twelvedata.get_stock_logo_url("TSLA", "NASDAQ")
+      assert logo_url == "https://api.twelvedata.com/logo/tesla.com"
     end
   end
 end
