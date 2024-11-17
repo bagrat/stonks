@@ -82,4 +82,4 @@ config :phoenix_live_view, :debug_heex_annotations, true
 # Disable swoosh api client as it is only required for production adapters.
 config :swoosh, :api_client, false
 
-config :stonks, :twelvedata, api_key: "bb6141c0a7c449949a766265877511b9"
+config :stonks, :twelvedata, api_key: "7664161e38d94812b53e9b00d06edd72"
