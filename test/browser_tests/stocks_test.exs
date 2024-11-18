@@ -42,11 +42,11 @@ defmodule Stonks.BrowserTests.StocksTest do
     |> stub(:get_stock_logo_url, fn symbol, exchange ->
       {:ok, logos[{symbol, exchange}]}
     end)
-    |> stub(:get_daily_time_series, fn symbol, exchange ->
+    |> stub(:get_daily_time_series, fn _symbol, _exchange ->
       {:ok, []}
     end)
 
-    stock_cards =
+    _stock_cards =
       session
       |> visit("/")
       |> find(css(".stock-card", count: 3))
