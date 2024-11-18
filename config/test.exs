@@ -43,4 +43,6 @@ config :stonks, :sandbox, Stonks.Sandbox
 
 config :stonks, :twelvedata, api_key: "7664161e38d94812b53e9b00d06edd72"
 
+config :stonks, :http_client, Stonks.HTTPClient.Mock
+
 config :stonks, :stocks_api, Stonks.StocksAPI.Mock
