@@ -18,7 +18,8 @@ defmodule Stonks.Application do
       # {Stonks.Worker, arg},
       # Start to serve requests, typically the last entry
       StonksWeb.Endpoint,
-      Stonks.StocksAPI.Twelvedata
+      Stonks.StocksAPI.Twelvedata,
+      Stonks.HTTPCache
     ]
 
     # See https://hexdocs.pm/elixir/Supervisor.html

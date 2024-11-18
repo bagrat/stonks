@@ -26,6 +26,8 @@ defmodule Stonks.StocksAPI.Twelvedata do
   require Logger
   alias Stonks.Stocks.{Stock, TimeseriesDataPoint}
 
+  alias Stonks.HTTPCache
+
   @behaviour Stonks.StocksAPI
 
   # Client API
@@ -235,28 +237,55 @@ defmodule Stonks.StocksAPI.Twelvedata do
   defp make_request(path) do
     url = "https://api.twelvedata.com/#{path}"
     [api_key: api_key] = Application.fetch_env!(:stonks, :twelvedata)
+    cache_key = :crypto.hash(:sha256, url) |> Base.encode16()
 
-    request =
-      Finch.build(:get, url, [
-        {"Authorization", "apikey #{api_key}"}
-      ])
+    case HTTPCache.get_cached(cache_key) do
+      nil ->
+        request = Finch.build(:get, url, [{"Authorization", "apikey #{api_key}"}])
 
-    result =
-      case Finch.request(request, Stonks.Finch) do
-        {:ok, %Finch.Response{status: 200, body: body}} ->
-          case Jason.decode(body) do
-            {:ok, %{"status" => "error", "code" => 429}} -> {:error, :rate_limited, 60}
-            {:ok, body} -> {:ok, body}
-            _ -> {:error, "Unexpected response body: #{inspect(body)}"}
+        result =
+          case Finch.request(request, Stonks.Finch) do
+            {:ok, %Finch.Response{status: 200, body: body}} ->
+              case Jason.decode(body) do
+                {:ok, %{"status" => "error", "code" => 429}} ->
+                  {:error, :rate_limited, 60}
+
+                {:ok, body} = success ->
+                  # Only cache successful responses
+                  HTTPCache.put_cached(cache_key, success, get_ttl_for_path(path))
+                  success
+
+                error ->
+                  {:error, "Unexpected response body: #{inspect(body)}"}
+              end
+
+            {:ok, %Finch.Response{status: status}} ->
+              {:error, "Request failed with status code: #{status}"}
+
+            {:error, reason} ->
+              {:error, reason}
           end
 
-        {:ok, %Finch.Response{status: status}} ->
-          {:error, "Request failed with status code: #{status}"}
+        log_request_result(url, result)
+        result
 
-        {:error, reason} ->
-          {:error, reason}
-      end
+      cached_result ->
+        cached_result
+    end
+  end
 
+  defp get_ttl_for_path(path) do
+    cond do
+      # Logo URLs rarely change
+      String.contains?(path, "logo") -> :timer.hours(24 * 7)
+      # Time series need frequent updates
+      String.contains?(path, "time_series") -> :timer.minutes(15)
+      # Default TTL
+      true -> :timer.hours(24)
+    end
+  end
+
+  defp log_request_result(url, result) do
     case result do
       {:ok, _} ->
         Logger.debug("Request to #{url} succeeded")
@@ -267,7 +296,5 @@ defmodule Stonks.StocksAPI.Twelvedata do
       _ ->
         Logger.debug("Failed request to #{url} result: #{inspect(result)}")
     end
-
-    result
   end
 end
