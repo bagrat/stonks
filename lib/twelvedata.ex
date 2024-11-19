@@ -253,9 +253,9 @@ defmodule Stonks.StocksAPI.Twelvedata do
              ) do
           {:ok, %{status: 200, body: body}} ->
             case Jason.decode(body) do
-              {:ok, %{"status" => "error", "code" => code}} = body ->
+              {:ok, %{"status" => "error", "code" => code} = body} ->
                 case code do
-                  "429" ->
+                  429 ->
                     {:error, :rate_limited, 60}
 
                   _ ->
