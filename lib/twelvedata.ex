@@ -265,6 +265,11 @@ defmodule Stonks.StocksAPI.Twelvedata do
               {:ok, body} ->
                 GenericCache.put_cached(cache_pid, cache_key, body, get_ttl_for_path(path))
 
+                Stonks.Metrics.create_twelvedata_request(%{
+                  url: url,
+                  timestamp: DateTime.utc_now()
+                })
+
                 {:ok, body}
 
               {:error, reason} ->
