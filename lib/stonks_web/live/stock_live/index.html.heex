@@ -1,8 +1,14 @@
 <div class="mt-11 w-full flex flex-col items-center justify-center">
-  <div class="relative w-[27rem]">
+  <div class={[
+    "relative w-[30rem]",
+    "min-h-[calc(7*(3.75rem+1px)+1px)]"
+  ]}>
     <div
       :for={stock <- @stocks}
-      class="stock-card flex hover:bg-zinc-50 my-3 py-2 px-3 hover:cursor-pointer items-center justify-between"
+      class={[
+        "stock-card flex hover:bg-zinc-50 py-2 px-3 hover:cursor-pointer items-center justify-between",
+        "border-b border-zinc-150 first:border-t"
+      ]}
     >
       <div class="flex items-center flex-1">
         <div class="flex relative w-10 h-10 items-center">
