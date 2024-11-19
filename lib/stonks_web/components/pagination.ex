@@ -4,6 +4,7 @@ defmodule StonksWeb.Components.Pagination do
   attr :class, :any, default: nil
   attr :rest, :global, include: ~w(disabled form name value)
   attr :link_to, :string, default: nil
+  attr :disabled, :boolean, default: false
 
   slot :inner_block, required: true
 
@@ -13,24 +14,26 @@ defmodule StonksWeb.Components.Pagination do
 
   def pagination_button(assigns) do
     ~H"""
-    <button
+    <.link
+      patch={@link_to}
       class={
         merge_classes(
           [
-            "group disabled:pointer-events-none rounded-none h-full",
-            "border-yellow-300 hover:bg-yellow-300",
-            "px-3",
-            "text-sm"
+            @disabled && "pointer-events-none",
+            not @disabled && "text-zinc-600 border-zinc-700",
+            @disabled && "text-zinc-300 border-zinc-400",
+            "border hover:bg-zinc-200 rounded-md",
+            "h-full px-3 mx-1",
+            "text-sm",
+            "flex items-center justify-center"
           ],
           @class
         )
       }
       {@rest}
     >
-      <.link patch={@link_to} class="group-disabled:pointer-events-none">
-        <%= render_slot(@inner_block) %>
-      </.link>
-    </button>
+      <%= render_slot(@inner_block) %>
+    </.link>
     """
   end
 
@@ -40,5 +43,9 @@ defmodule StonksWeb.Components.Pagination do
 
   defp merge_classes(class1, class2) when is_list(class1) and is_list(class2) do
     class1 ++ class2
+  end
+
+  defp merge_classes(class1, class2) when is_nil(class2) do
+    class1
   end
 end
