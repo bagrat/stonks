@@ -11,7 +11,7 @@ defmodule Stonks.MetricsFixtures do
     {:ok, twelvedata_request} =
       attrs
       |> Enum.into(%{
-        timestamp: ~T[14:00:00],
+        timestamp: DateTime.utc_now(),
         url: "some url"
       })
       |> Stonks.Metrics.create_twelvedata_request()

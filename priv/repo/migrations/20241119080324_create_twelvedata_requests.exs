@@ -5,7 +5,7 @@ defmodule Stonks.Repo.Migrations.CreateTwelvedataRequests do
     create table(:twelvedata_requests, primary_key: false) do
       add :id, :binary_id, primary_key: true
       add :url, :string
-      add :timestamp, :time
+      add :timestamp, :utc_datetime
 
       timestamps(type: :utc_datetime)
     end

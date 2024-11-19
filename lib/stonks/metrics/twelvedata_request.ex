@@ -5,7 +5,7 @@ defmodule Stonks.Metrics.TwelvedataRequest do
   @primary_key {:id, :binary_id, autogenerate: true}
   @foreign_key_type :binary_id
   schema "twelvedata_requests" do
-    field :timestamp, :time
+    field :timestamp, :utc_datetime
     field :url, :string
 
     timestamps(type: :utc_datetime)
