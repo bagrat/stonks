@@ -34,6 +34,7 @@ curl -s https://googlechromelabs.github.io/chrome-for-testing/known-good-version
 - [ ] DRY up Twelvedata client module to use the same code for both the API and the tests
 - [ ] Extract rate-limiting from the Twelvedata API client
 - [ ] Exclude tests using the real API when running `mix test`
+- [ ] Implement a background job for the cache to sweep trhough expired values
 - [ ] Come up with a strategy to sort the stock without having statistics for all
   - [ ] ~~maybe use the the average volume from the timeseries data - won't work, still need to fetch for all symbols~~
 - [x] Add a loading state to the stock page
