@@ -56,11 +56,15 @@ defmodule Stonks.StocksAPI.Twelvedata do
   @impl true
   def init(_opts) do
     {:ok, cache_pid} = GenericCache.start_link(name: :"twelvedata_cache_#{inspect(self())}")
-    {:ok, %{waiting_queue: :queue.new(), cache_pid: cache_pid}}
+    {:ok, %{waiting_queue: :queue.new(), cache_pid: cache_pid, waiting?: false}}
   end
 
   @impl true
-  def handle_call(request, {from_pid, _} = from, %{waiting_queue: queue} = state) do
+  def handle_call(
+        request,
+        {from_pid, _} = from,
+        %{waiting_queue: queue} = state
+      ) do
     # Monitor the calling process
     ref = Process.monitor(from_pid)
 
@@ -68,14 +72,19 @@ defmodule Stonks.StocksAPI.Twelvedata do
     Logger.debug("Queueing request #{inspect(request)}, current queue size: #{:queue.len(queue)}")
     updated_queue = :queue.in({request, from, DateTime.utc_now(), ref}, queue)
 
-    send(self(), :process_queue)
+    send(self(), {:process_queue, :wait})
 
     # Return immediately, letting the process_queue handle the request
     {:noreply, %{state | waiting_queue: updated_queue}}
   end
 
   @impl true
-  def handle_info(:process_queue, %{waiting_queue: queue, cache_pid: cache_pid} = state) do
+  def handle_info({:process_queue, :wait}, %{waiting?: true} = state) do
+    {:noreply, state}
+  end
+
+  @impl true
+  def handle_info({:process_queue, _}, %{waiting_queue: queue, cache_pid: cache_pid} = state) do
     Logger.debug("Processing queue, current queue size: #{:queue.len(queue)}")
 
     case :queue.out(queue) do
@@ -88,8 +97,8 @@ defmodule Stonks.StocksAPI.Twelvedata do
             Logger.debug("Requeued request #{inspect(request)}")
 
             # Schedule next processing after the retry delay
-            Process.send_after(self(), :process_queue, retry_after * 1000)
-            {:noreply, %{state | waiting_queue: updated_queue}}
+            Process.send_after(self(), {:process_queue, :nowait}, retry_after * 1000)
+            {:noreply, %{state | waiting_queue: updated_queue, waiting?: true}}
 
           result ->
             # Request succeeded, demonitor and reply
@@ -97,14 +106,14 @@ defmodule Stonks.StocksAPI.Twelvedata do
             GenServer.reply(from, result)
 
             if :queue.len(new_queue) > 0 do
-              send(self(), :process_queue)
+              send(self(), {:process_queue, :nowait})
             end
 
-            {:noreply, %{state | waiting_queue: new_queue}}
+            {:noreply, %{state | waiting_queue: new_queue, waiting?: false}}
         end
 
       {:empty, _} ->
-        {:noreply, state}
+        {:noreply, %{state | waiting?: false}}
     end
   end
 
@@ -253,9 +262,10 @@ defmodule Stonks.StocksAPI.Twelvedata do
              ) do
           {:ok, %{status: 200, body: body}} ->
             case Jason.decode(body) do
-              {:ok, %{"status" => "error", "code" => code}} = body ->
+              {:ok, %{"status" => "error", "code" => code} = body} ->
                 case code do
-                  "429" ->
+                  429 ->
+                    Logger.warning("Rate limited by Twelvedata, retrying in 60 seconds")
                     {:error, :rate_limited, 60}
 
                   _ ->
