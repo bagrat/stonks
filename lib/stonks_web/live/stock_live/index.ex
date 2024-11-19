@@ -11,12 +11,17 @@ defmodule StonksWeb.StockLive.Index do
 
     total_pages = (length(all_stocks) / @stocks_per_page) |> ceil()
 
+    all_stocks_sorted =
+      all_stocks
+      |> Enum.sort_by(fn stock -> stock.symbol end)
+
     {:ok,
      socket
      |> assign(:total_pages, total_pages)
-     |> assign(:all_stocks, all_stocks)
+     |> assign(:all_stocks, all_stocks_sorted)
      |> assign(:details_task, nil)
-     |> assign(:details_loading, true)}
+     |> assign(:details_loading, true)
+     |> assign(:stocks_per_page, @stocks_per_page)}
   end
 
   @impl true
