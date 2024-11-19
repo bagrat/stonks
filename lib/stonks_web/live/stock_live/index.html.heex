@@ -1,5 +1,5 @@
-<div class="w-[27rem] mt-11">
-  <div class="relative">
+<div class="mt-11 w-full flex flex-col items-center justify-center">
+  <div class="relative w-[25rem]">
     <div
       :for={stock <- @stocks}
       class="stock-card flex hover:bg-zinc-50 my-3 py-2 px-3 hover:cursor-pointer items-center justify-between"
@@ -71,45 +71,39 @@
       <% end %>
     </div>
   </div>
-  <div class="flex">
-    <div class="text-center py-3">
-      <.link
-        patch={~p"/?page=#{(@current_page - 1) |> max(1)}"}
-        class={[
-          "text-blue-600 hover:text-blue-800",
-          @current_page == 1 && "pointer-events-none text-gray-400"
-        ]}
+  <div class="flex items-center justify-between border border-black rounded-lg bg-zinc-100 p-0 mt-6 h-8 w-[25rem] overflow-hidden">
+    <div class="flex items-center h-full">
+      <.pagination_button class="border-r" link_to={~p"/?page=1"} disabled={@current_page == 1}>
+        First
+      </.pagination_button>
+      <.pagination_button
+        class="border-r"
+        link_to={~p"/?page=#{(@current_page - 1) |> max(1)}"}
+        disabled={@current_page == 1}
       >
         Previous
-      </.link>
+      </.pagination_button>
     </div>
 
-    <div class="flex min-w-[25rem] justify-center">
-      <div :for={page <- @pages_to_show} class="text-center py-3">
-        <%= if is_integer(page) && page == @current_page do %>
-          <div class="w-[2.5rem] text-zinc-700"><%= page %></div>
-        <% else %>
-          <%= if is_atom(page) && page == :ellipsis do %>
-            <div class="text-zinc-400">...</div>
-          <% else %>
-            <div class="w-[2.5rem] text-zinc-400">
-              <.link patch={~p"/?page=#{page}"}><%= page %></.link>
-            </div>
-          <% end %>
-        <% end %>
-      </div>
+    <div class="text-center text-sm">
+      <%= @current_page %> of <%= @total_pages %> pages
     </div>
 
-    <div class="text-center py-3">
-      <.link
-        patch={~p"/?page=#{(@current_page + 1) |> min(@total_pages)}"}
-        class={[
-          "text-blue-600 hover:text-blue-800",
-          @current_page == @total_pages && "pointer-events-none text-gray-400"
-        ]}
+    <div class="flex items-center h-full">
+      <.pagination_button
+        class="border-l"
+        link_to={~p"/?page=#{(@current_page + 1) |> min(@total_pages)}"}
+        disabled={@current_page == @total_pages}
       >
         Next
-      </.link>
+      </.pagination_button>
+      <.pagination_button
+        class="border-l"
+        link_to={~p"/?page=#{@total_pages}"}
+        disabled={@current_page == @total_pages}
+      >
+        Last
+      </.pagination_button>
     </div>
   </div>
 </div>

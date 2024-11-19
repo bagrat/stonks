@@ -32,13 +32,15 @@ curl -s https://googlechromelabs.github.io/chrome-for-testing/known-good-version
   - [ ] Make the retry-after time global, not for individual requests
   - [x] Cancel pending rate-limited requestes for logos that are no longer visible on the stocks page
 - [ ] DRY up Twelvedata client module to use the same code for both the API and the tests
+- [ ] Extract rate-limiting from the Twelvedata API client
 - [ ] Exclude tests using the real API when running `mix test`
 - [ ] Come up with a strategy to sort the stock without having statistics for all
   - [ ] ~~maybe use the the average volume from the timeseries data - won't work, still need to fetch for all symbols~~
 - [x] Add a loading state to the stock page
   - [ ] When loading takes more than X seconds, i.e. rate-limited, show the upgrade tip
+  - [ ] Fix UI glitching when loading cached details quickly
 - [ ] Add a tooltip for truncated company names
-- [ ] Support mobile view
-- [ ] Extract rate-limiting from the Twelvedata API client
-- [ ] Fix UI glitching when loading cached details quickly
 - [ ] Enable to run browser and liveview tests together without conflicts
+- [ ] Extract stock card HTML into a component
+- [ ] Remove timeseries HTML from the stock page after the chart is loaded
+- [ ] Support mobile view

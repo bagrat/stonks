@@ -85,6 +85,7 @@ defmodule StonksWeb do
       import Phoenix.HTML
       # Core UI components and translation
       import StonksWeb.CoreComponents
+      import StonksWeb.Components.Pagination
       import StonksWeb.Gettext
 
       # Shortcut for generating JS commands
