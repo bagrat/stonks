@@ -6,9 +6,11 @@ defmodule Stonks.BrowserTests.StocksTest do
 
   import Mox
 
+  @stocks_per_page Application.compile_env(:stonks, :stocks_per_page, 7)
+
   setup :verify_on_exit!
 
-  feature "Homepage shows first 3 stocks", %{session: session} do
+  feature "Homepage shows first #{@stocks_per_page} stocks", %{session: session} do
     stocks_data =
       for i <- 1..10 do
         symbol = "STCK#{i}"
@@ -22,23 +24,21 @@ defmodule Stonks.BrowserTests.StocksTest do
             exchange: exchange
           }
 
-        {{symbol, exchange}, {i, stock}}
+        stock
       end
-      |> Map.new()
+      |> Enum.sort_by(fn %Stonks.Stocks.Stock{symbol: symbol} -> symbol end)
 
-    test_stocks =
-      stocks_data
-      |> Map.values()
-      |> Enum.sort_by(fn {i, _stock} -> i end)
-      |> Enum.map(fn {_i, stock} -> stock end)
+    expected_stocks = stocks_data |> Enum.take(@stocks_per_page)
 
     logos =
       stocks_data
-      |> Enum.map(fn {key, {i, _stock}} -> {key, "/images/logo-#{i}.svg"} end)
+      |> Enum.map(fn stock ->
+        {{stock.symbol, stock.exchange}, "/images/logo.svg?_=#{stock.symbol}-#{stock.exchange}"}
+      end)
       |> Map.new()
 
     Stonks.StocksAPI.Mock
-    |> stub(:list_stocks, fn -> {:ok, test_stocks} end)
+    |> stub(:list_stocks, fn -> {:ok, expected_stocks} end)
     |> stub(:get_stock_logo_url, fn symbol, exchange ->
       {:ok, logos[{symbol, exchange}]}
     end)
@@ -49,21 +49,33 @@ defmodule Stonks.BrowserTests.StocksTest do
     _stock_cards =
       session
       |> visit("/")
-      |> find(css(".stock-card", count: 3))
+      |> find(css(".stock-card", count: @stocks_per_page))
       |> Enum.map(fn stock_card ->
-        [stock_card, find(stock_card, css(".stock-symbol")), find(stock_card, css(".stock-name"))]
+        [
+          stock_card,
+          find(stock_card, css(".stock-symbol")),
+          find(stock_card, css(".stock-name")),
+          find(stock_card, css(".stock-exchange"))
+        ]
       end)
-      |> Enum.with_index()
-      |> Enum.map(fn {[stock_card, stock_symbol, stock_name], i} ->
-        assert_text(stock_symbol, "STCK#{i + 1}")
-        assert_text(stock_name, "Stonky Company #{i + 1}")
+      |> Enum.map(fn
+        [stock_card, stock_symbol_element, stock_name_element, stock_exchange_element] ->
+          stock_symbol = Element.text(stock_symbol_element)
+          stock_name = Element.text(stock_name_element)
+          stock_exchange = Element.text(stock_exchange_element)
 
-        src =
-          stock_card
-          |> find(css("img"))
-          |> Element.attr("src")
+          expected_stock = stocks_data |> Enum.find(fn stock -> stock.symbol == stock_symbol end)
 
-        assert src =~ "/images/logo-#{i + 1}.svg"
+          assert_text(stock_symbol_element, expected_stock.symbol)
+          assert_text(stock_name_element, expected_stock.name)
+          assert_text(stock_exchange_element, expected_stock.exchange)
+
+          src =
+            stock_card
+            |> find(css("img"))
+            |> Element.attr("src")
+
+          assert src =~ "/images/logo.svg?_=#{expected_stock.symbol}-#{expected_stock.exchange}"
       end)
   end
 end

@@ -2,7 +2,7 @@ defmodule StonksWeb.StockLive.Index do
   use StonksWeb, :live_view
   require Logger
 
-  @stocks_per_page 3
+  @stocks_per_page Application.compile_env(:stonks, :stocks_per_page, 7)
 
   @impl true
   def mount(_params, _session, socket) do
