@@ -48,3 +48,4 @@ curl -s https://googlechromelabs.github.io/chrome-for-testing/known-good-version
 - [ ] Improve TwelveData API call tracking
   - [ ] Maybe track the summary instead of each call, of what interest is every call?
   - [ ] Possibly add an async layer in between, so that the API client doesn't have to wait for DB writes
+- [ ] Add search
