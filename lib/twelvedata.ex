@@ -25,14 +25,12 @@ defmodule Stonks.StocksAPI.Twelvedata do
   use GenServer
   require Logger
   alias Stonks.Stocks.{Stock, TimeseriesDataPoint}
-
-  alias Stonks.HTTPClient.Cached, as: HTTPClientCached
-
+  alias Stonks.GenericCache
   @behaviour Stonks.StocksAPI
 
   # Client API
-  def start_link(_opts \\ []) do
-    GenServer.start_link(__MODULE__, %{}, name: __MODULE__)
+  def start_link(opts \\ []) do
+    GenServer.start_link(__MODULE__, opts, name: __MODULE__)
   end
 
   def list_stocks_for_exchange(exchange) do
@@ -57,7 +55,8 @@ defmodule Stonks.StocksAPI.Twelvedata do
   # Server Callbacks
   @impl true
   def init(_opts) do
-    {:ok, %{waiting_queue: :queue.new()}}
+    {:ok, cache_pid} = GenericCache.start_link(name: :"twelvedata_cache_#{inspect(self())}")
+    {:ok, %{waiting_queue: :queue.new(), cache_pid: cache_pid}}
   end
 
   @impl true
@@ -76,12 +75,12 @@ defmodule Stonks.StocksAPI.Twelvedata do
   end
 
   @impl true
-  def handle_info(:process_queue, %{waiting_queue: queue} = state) do
+  def handle_info(:process_queue, %{waiting_queue: queue, cache_pid: cache_pid} = state) do
     Logger.debug("Processing queue, current queue size: #{:queue.len(queue)}")
 
     case :queue.out(queue) do
       {{:value, {request, from, _enqueued_at, ref}}, new_queue} ->
-        case do_handle_request(request) do
+        case do_handle_request(request, cache_pid) do
           {:error, :rate_limited, retry_after} ->
             # If rate limited, re-queue with a future retry time
             retry_at = DateTime.add(DateTime.utc_now(), retry_after, :second)
@@ -111,7 +110,10 @@ defmodule Stonks.StocksAPI.Twelvedata do
 
   # Handle DOWN messages from monitored processes
   @impl true
-  def handle_info({:DOWN, ref, :process, pid, _reason}, %{waiting_queue: queue} = state) do
+  def handle_info(
+        {:DOWN, ref, :process, pid, _reason},
+        %{waiting_queue: queue} = state
+      ) do
     # Remove any queued requests from the terminated process
     updated_queue =
       queue
@@ -129,27 +131,27 @@ defmodule Stonks.StocksAPI.Twelvedata do
   end
 
   # Private request handlers
-  defp do_handle_request({:list_stocks_for_exchange, exchange}) do
-    do_list_stocks_for_exchange(exchange)
+  defp do_handle_request({:list_stocks_for_exchange, exchange}, cache_pid) do
+    do_list_stocks_for_exchange(exchange, cache_pid)
   end
 
-  defp do_handle_request(:list_stocks) do
-    do_list_stocks()
+  defp do_handle_request(:list_stocks, cache_pid) do
+    do_list_stocks(cache_pid)
   end
 
-  defp do_handle_request({:get_stock_logo_url, symbol, exchange}) do
-    do_get_stock_logo_url(symbol, exchange)
+  defp do_handle_request({:get_stock_logo_url, symbol, exchange}, cache_pid) do
+    do_get_stock_logo_url(symbol, exchange, cache_pid)
   end
 
-  defp do_handle_request({:get_daily_time_series, symbol, exchange}) do
-    do_get_daily_time_series(symbol, exchange)
+  defp do_handle_request({:get_daily_time_series, symbol, exchange}, cache_pid) do
+    do_get_daily_time_series(symbol, exchange, cache_pid)
   end
 
   # API Implementation
-  defp do_list_stocks_for_exchange(exchange) do
+  defp do_list_stocks_for_exchange(exchange, cache_pid) do
     path = "stocks?exchange=#{exchange}"
 
-    case make_request(path) do
+    case make_request(path, cache_pid) do
       {:ok, %{"data" => stocks}} ->
         {:ok,
          stocks
@@ -170,9 +172,9 @@ defmodule Stonks.StocksAPI.Twelvedata do
     end
   end
 
-  defp do_list_stocks() do
-    nasdaq_task = Task.async(fn -> do_list_stocks_for_exchange("NASDAQ") end)
-    nyse_task = Task.async(fn -> do_list_stocks_for_exchange("NYSE") end)
+  defp do_list_stocks(cache_pid) do
+    nasdaq_task = Task.async(fn -> do_list_stocks_for_exchange("NASDAQ", cache_pid) end)
+    nyse_task = Task.async(fn -> do_list_stocks_for_exchange("NYSE", cache_pid) end)
 
     timeout_5_min = 5 * 60 * 1000
 
@@ -185,10 +187,10 @@ defmodule Stonks.StocksAPI.Twelvedata do
     end
   end
 
-  defp do_get_stock_logo_url(symbol, exchange) do
+  defp do_get_stock_logo_url(symbol, exchange, cache_pid) do
     path = "logo?symbol=#{symbol}&exchange=#{exchange}"
 
-    case make_request(path) do
+    case make_request(path, cache_pid) do
       {:ok, %{"url" => url}} ->
         {:ok, url}
 
@@ -203,10 +205,10 @@ defmodule Stonks.StocksAPI.Twelvedata do
     end
   end
 
-  defp do_get_daily_time_series(symbol, exchange) do
+  defp do_get_daily_time_series(symbol, exchange, cache_pid) do
     path = "time_series?symbol=#{symbol}&interval=1day&exchange=#{exchange}"
 
-    case make_request(path) do
+    case make_request(path, cache_pid) do
       {:ok, %{"values" => values}} ->
         {:ok,
          values
@@ -234,17 +236,51 @@ defmodule Stonks.StocksAPI.Twelvedata do
     end
   end
 
-  defp make_request(path) do
+  defp make_request(path, cache_pid) do
     url = "https://api.twelvedata.com/#{path}"
     [api_key: api_key] = Application.fetch_env!(:stonks, :twelvedata)
 
-    HTTPClientCached.get(
-      HTTPClientCached,
-      url,
-      headers: [{"Authorization", "apikey #{api_key}"}],
-      cache_ttl: get_ttl_for_path(path)
-    )
+    headers = [{"Authorization", "apikey #{api_key}"}]
+    cache_key = cache_key("GET", url, headers)
+    cached_value = GenericCache.get_cached(cache_pid, cache_key)
+
+    case cached_value do
+      nil ->
+        case http_client().request(
+               :get,
+               url,
+               headers: headers
+             ) do
+          {:ok, %{status: 200, body: body}} ->
+            case Jason.decode(body) do
+              {:ok, %{"status" => "error", "code" => code}} = body ->
+                case code do
+                  "429" ->
+                    {:error, :rate_limited, 60}
+
+                  _ ->
+                    {:ok, body}
+                end
+
+              {:ok, body} ->
+                GenericCache.put_cached(cache_pid, cache_key, body, get_ttl_for_path(path))
+
+                {:ok, body}
+
+              {:error, reason} ->
+                {:error, reason}
+            end
+
+          {:error, reason} ->
+            {:error, reason}
+        end
+
+      _ ->
+        {:ok, cached_value}
+    end
   end
+
+  defp http_client, do: Application.get_env(:stonks, :http_client, Stonks.HTTPClient.Finch)
 
   defp get_ttl_for_path(path) do
     cond do
@@ -255,5 +291,16 @@ defmodule Stonks.StocksAPI.Twelvedata do
       # Default TTL
       true -> :timer.hours(24)
     end
+  end
+
+  defp cache_key(method, url, headers) do
+    headers_string =
+      headers
+      |> Enum.sort()
+      |> Enum.map(fn {k, v} -> "#{k}:#{v}" end)
+      |> Enum.join("|")
+
+    :crypto.hash(:sha256, "#{method}|#{url}|#{headers_string}")
+    |> Base.encode16()
   end
 end
