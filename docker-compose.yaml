@@ -10,6 +10,7 @@ services:
     environment:
       - POSTGRES_PASSWORD=stonks
       - POSTGRES_USER=stonks
+      - POSTGRES_DB=stonks
 
   app:
     build: .
