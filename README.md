@@ -50,3 +50,4 @@ curl -s https://googlechromelabs.github.io/chrome-for-testing/known-good-version
   - [ ] Possibly add an async layer in between, so that the API client doesn't have to wait for DB writes
 - [ ] Add search
 - [ ] Add details page for each stock showing candlestick chart for timeseries
+- [x] Show average or last high and low on the stock card

@@ -89,11 +89,25 @@ defmodule StonksWeb.StockLive.Index do
             end)
 
           {:ok, time_series} = Task.await(timeseries_task, 5 * 60000)
+          IO.inspect(time_series)
           {:ok, logo_url} = Task.await(logo_task, 5 * 60000)
 
-          stock
-          |> Map.put(:time_series, time_series)
-          |> Map.put(:logo_url, logo_url)
+          stock =
+            stock
+            |> Map.put(:time_series, time_series)
+            |> Map.put(:logo_url, logo_url)
+
+          case time_series do
+            [%{high: price_high, low: price_low} | _] ->
+              stock
+              |> Map.put(:price_high, price_high)
+              |> Map.put(:price_low, price_low)
+
+            _ ->
+              stock
+              |> Map.put(:price_high, nil)
+              |> Map.put(:price_low, nil)
+          end
         end)
       end)
 

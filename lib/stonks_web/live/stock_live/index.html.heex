@@ -47,39 +47,58 @@
         </div>
       </div>
 
-      <%= if @details_loading do %>
-        <div class="w-[6rem] h-[2rem] bg-zinc-200 rounded-md animate-pulse"></div>
-      <% else %>
-        <div
-          id={"chart-container-#{stock.exchange}-#{stock.symbol}"}
-          data-symbol={stock.symbol}
-          data-exchange={stock.exchange}
-          class="preview-chart w-[6rem] h-[2rem] flex-shrink-0 border border-green-500 rounded-md px-1 py-1 bg-green-50 hover:bg-green-100"
-          phx-hook="StockChart"
-        >
-          <canvas
-            id={"chart-#{stock.exchange}-#{stock.symbol}"}
-            style="height: 100%; width: 100%;"
-          >
-          </canvas>
-
-          <timeseries
-            :if={stock.time_series != nil}
-            class="hidden"
+      <div class="flex items-center">
+        <%= if @details_loading do %>
+          <div class="w-[6rem] h-[2rem] bg-zinc-200 rounded-md animate-pulse"></div>
+        <% else %>
+          <div class="flex-col items-center mr-2">
+            <div
+              :if={stock.price_high}
+              class="flex items-center text-xs text-green-500 justify-end"
+            >
+              <span class="ml-0.5">
+                <%= stock.price_high %>
+              </span>
+              <.icon name="hero-arrow-up" class="h-3 w-3" />
+            </div>
+            <div :if={stock.price_low} class="flex items-center text-xs text-red-500 justify-end">
+              <span class="ml-0.5">
+                <%= stock.price_low %>
+              </span>
+              <.icon name="hero-arrow-down" class="h-3 w-3" />
+            </div>
+          </div>
+          <div
+            id={"chart-container-#{stock.exchange}-#{stock.symbol}"}
             data-symbol={stock.symbol}
             data-exchange={stock.exchange}
+            class="preview-chart w-[6rem] h-[2rem] flex-shrink-0 border border-green-500 rounded-md px-1 py-1 bg-green-50 hover:bg-green-100"
+            phx-hook="StockChart"
           >
-            <datapoint
-              :for={data_point <- stock.time_series}
-              data-datetime={data_point.datetime}
-              data-close={data_point.close}
-              data-open={data_point.open}
-              data-high={data_point.high}
-              data-low={data_point.low}
-            />
-          </timeseries>
-        </div>
-      <% end %>
+            <canvas
+              id={"chart-#{stock.exchange}-#{stock.symbol}"}
+              style="height: 100%; width: 100%;"
+            >
+            </canvas>
+
+            <timeseries
+              :if={stock.time_series != nil}
+              class="hidden"
+              data-symbol={stock.symbol}
+              data-exchange={stock.exchange}
+            >
+              <datapoint
+                :for={data_point <- stock.time_series}
+                data-datetime={data_point.datetime}
+                data-close={data_point.close}
+                data-open={data_point.open}
+                data-high={data_point.high}
+                data-low={data_point.low}
+              />
+            </timeseries>
+          </div>
+        <% end %>
+      </div>
     </div>
   </div>
   <div class="flex items-center justify-between w-[29rem] mt-6">
