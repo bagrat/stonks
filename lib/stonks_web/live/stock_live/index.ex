@@ -103,36 +103,6 @@ defmodule StonksWeb.StockLive.Index do
     |> assign(:details_loading, true)
   end
 
-  defp assign_pages_to_show(socket) do
-    total_pages = socket.assigns.total_pages
-    current_page = socket.assigns.current_page
-
-    pages_to_show =
-      cond do
-        total_pages <= 6 ->
-          1..total_pages
-
-        current_page <= 3 ->
-          [1, 2, 3, 4, 5, 6, :ellipsis, total_pages]
-
-        current_page >= total_pages - 2 ->
-          [1, :ellipsis] ++ Enum.to_list((total_pages - 5)..total_pages)
-
-        true ->
-          first_visible_page = current_page - 2
-          last_visible_page = current_page + 2
-
-          visible_pages =
-            first_visible_page..last_visible_page
-            |> Enum.to_list()
-
-          [1, :ellipsis] ++ visible_pages ++ [:ellipsis, total_pages]
-      end
-
-    socket
-    |> assign(:pages_to_show, pages_to_show)
-  end
-
   defp apply_action(socket, :index, params) do
     requested_page =
       (params["page"] || "1")
@@ -159,7 +129,6 @@ defmodule StonksWeb.StockLive.Index do
     |> assign(:page_title, "Stocks")
     |> assign(:current_page, current_page)
     |> assign_stocks_for_page()
-    |> assign_pages_to_show()
     |> then(fn socket ->
       if requested_page != current_page do
         push_patch(socket, to: ~p"/?page=#{current_page}")
