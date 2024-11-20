@@ -17,8 +17,10 @@ defmodule StonksWeb.Router do
   scope "/", StonksWeb do
     pipe_through :browser
 
+    get "/", PageController, :home
+
     live_session :default, on_mount: Stonks.Hooks.AllowEctoSandbox do
-      live "/", StockLive.Index, :index
+      live "/stocks", StockLive.Index, :index
     end
   end
 

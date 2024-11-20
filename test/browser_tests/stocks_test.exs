@@ -48,7 +48,7 @@ defmodule Stonks.BrowserTests.StocksTest do
 
     _stock_cards =
       session
-      |> visit("/")
+      |> visit("/stocks")
       |> find(css(".stock-card", count: @stocks_per_page))
       |> Enum.map(fn stock_card ->
         [

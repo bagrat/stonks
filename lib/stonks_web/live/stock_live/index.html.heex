@@ -103,12 +103,12 @@
   </div>
   <div class="flex items-center justify-between w-[29rem] mt-6">
     <div class="flex items-center h-full">
-      <.pagination_button link_to={~p"/?page=1"} disabled={@current_page == 1} class="pr-4">
+      <.pagination_button link_to={~p"/stocks?page=1"} disabled={@current_page == 1} class="pr-4">
         <.icon name="hero-chevron-double-left" class="h-3 w-3" />
         <span class="ml-0.5">First</span>
       </.pagination_button>
       <.pagination_button
-        link_to={~p"/?page=#{(@current_page - 1) |> max(1)}"}
+        link_to={~p"/stocks?page=#{(@current_page - 1) |> max(1)}"}
         disabled={@current_page == 1}
         class="pr-4"
       >
@@ -123,7 +123,7 @@
 
     <div class="flex items-center h-full">
       <.pagination_button
-        link_to={~p"/?page=#{(@current_page + 1) |> min(@total_pages)}"}
+        link_to={~p"/stocks?page=#{(@current_page + 1) |> min(@total_pages)}"}
         disabled={@current_page == @total_pages}
         class="pl-4"
       >
@@ -131,7 +131,7 @@
         <.icon name="hero-chevron-right" class="h-3 w-3" />
       </.pagination_button>
       <.pagination_button
-        link_to={~p"/?page=#{@total_pages}"}
+        link_to={~p"/stocks?page=#{@total_pages}"}
         disabled={@current_page == @total_pages}
         class="pl-4"
       >

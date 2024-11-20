@@ -89,7 +89,6 @@ defmodule StonksWeb.StockLive.Index do
             end)
 
           {:ok, time_series} = Task.await(timeseries_task, 5 * 60000)
-          IO.inspect(time_series)
           {:ok, logo_url} = Task.await(logo_task, 5 * 60000)
 
           stock =
@@ -145,7 +144,7 @@ defmodule StonksWeb.StockLive.Index do
     |> assign_stocks_for_page()
     |> then(fn socket ->
       if requested_page != current_page do
-        push_patch(socket, to: ~p"/?page=#{current_page}")
+        push_patch(socket, to: ~p"/stocks?page=#{current_page}")
       else
         socket
       end
