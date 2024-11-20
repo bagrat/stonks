@@ -10,4 +10,15 @@ services:
     environment:
       - POSTGRES_PASSWORD=stonks
       - POSTGRES_USER=stonks
-      - TWELVE_DATA_API_KEY=bb6141c0a7c449949a766265877511b9
+
+  app:
+    build: .
+    ports:
+      - 4004:4004
+    environment:
+      - PHX_HOST=localhost
+      - DATABASE_URL=ecto://stonks:stonks@postgres:5432/stonks
+      - SECRET_KEY_BASE=k79uehhucEcFWGdZA75k5JiIDaflWDQz3wONKoYCPcHVtBO3bcV+06rH4+8tc/ZW
+      - TWELVE_DATA_API_KEY=7664161e38d94812b53e9b00d06edd72
+    depends_on:
+      - postgres
