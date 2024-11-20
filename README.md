@@ -12,10 +12,6 @@ Then open the browser and navigate to [http://localhost:4004](http://localhost:4
 
 ## TODOs
 
-- [x] Handle rate-limit errors from the Twelvedata API
-  - [ ] Make the retry-after time global, not for individual requests
-  - [x] Cancel pending rate-limited requestes for logos that are no longer visible on the stocks page
-- [ ] DRY up Twelvedata client module to use the same code for both the API and the tests
 - [ ] Extract rate-limiting from the Twelvedata API client
 - [ ] Exclude tests using the real API when running `mix test`
 - [ ] Implement a background job for the cache to sweep trhough expired values
